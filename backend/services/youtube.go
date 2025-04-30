@@ -379,9 +379,23 @@ func GetFormattedTranscript(items []TranscriptItem) string {
 	var builder strings.Builder
 
 	for _, item := range items {
+		builder.WriteString(fmt.Sprintf("[%s]", FormatTimestamp(item.Start)))
 		builder.WriteString(item.Text)
 		builder.WriteString(" ")
 	}
 
 	return strings.TrimSpace(builder.String())
+}
+
+// FormatTimestamp converts a float64 timestamp in seconds to [MM:SS] format
+func FormatTimestamp(seconds float64) string {
+	// Round to nearest second
+	totalSeconds := int(seconds + 0.5)
+
+	// Calculate minutes and remaining seconds
+	minutes := totalSeconds / 60
+	remainingSeconds := totalSeconds % 60
+
+	// Format as [MM:SS]
+	return fmt.Sprintf("[%02d:%02d]", minutes, remainingSeconds)
 }
