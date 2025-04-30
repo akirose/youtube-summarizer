@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Video Summarizer - AI-Powered with Timestamps</title>
+    <meta name="description" content="Summarize YouTube videos with AI-generated timestamps for easy navigation.">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🎬</text></svg>">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0">
+</head>
+<body>
+    <div class="container">
+        <div class="search-container">
+            <div class="logo">
+                <h1>YouTube Summarizer</h1>
+            </div>
+            <div class="search-box">
+                <form id="search-form">
+                    <div class="input-wrapper">
+                        <span class="material-symbols-outlined">link</span>
+                        <input type="text" id="video-url" placeholder="Paste YouTube URL here" required>
+                        <button type="button" id="clear-btn" class="clear-btn">
+                            <span class="material-symbols-outlined">close</span>
+                        </button>
+                    </div>
+                    <button type="submit" id="search-btn" class="search-btn">Summarize</button>
+                </form>
+            </div>
+        </div>
+
+        <div id="results-container" class="results-container hidden">
+            <div class="video-container">
+                <div id="player"></div>
+            </div>
+            <div class="summary-container">
+                <h2 id="video-title"></h2>
+                <div id="loading" class="loading hidden">
+                    <div class="spinner"></div>
+                    <p>Generating summary...</p>
+                </div>
+                <div id="summary" class="summary"></div>
+            </div>
+        </div>
+    </div>
+    <!-- YouTube IFrame API -->
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

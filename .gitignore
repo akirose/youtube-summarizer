@@ -1,0 +1,10 @@
+.DS_Store
+.idea/
+.vscode/
+*.iml
+*.log
+project.md
+**/.env
+backend/cache/
+presentation/
+**/*.tar.gz
