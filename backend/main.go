@@ -31,8 +31,6 @@ func main() {
 	router := gin.Default()
 
 	// Serve static files from frontend directory
-	router.Static("/presentation/", "../presentation")
-
 	router.StaticFile("/", "../frontend/index.html")
 	router.Static("/css", "../frontend/css")
 	router.Static("/js", "../frontend/js")
