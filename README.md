@@ -37,6 +37,7 @@ youtube_summarizer/
 
 - Go 1.20 or higher
 - OpenAI API key
+- yt-dlp (https://github.com/yt-dlp/yt-dlp)
 
 ### Backend Setup
 
@@ -47,6 +48,8 @@ youtube_summarizer/
 
    ```bash
    go mod tidy
+
+   pip3 install yt-dlp
    ```
 
 5. Run the server using one of these methods:
