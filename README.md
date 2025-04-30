@@ -1,6 +1,6 @@
 # YouTube Video Summarizer
 
-A web application that summarizes YouTube videos and allows users to navigate to specific timestamps. The application has a clean, Google-like interface with both frontend and backend components, and uses OpenAI's GPT-4o-mini model for generating summaries.
+A web application that summarizes YouTube videos and allows users to navigate to specific timestamps. The application has a clean, Google-like interface with both frontend and backend components, and uses OpenAI API for generating summaries.
 
 ## Features
 
@@ -14,7 +14,7 @@ A web application that summarizes YouTube videos and allows users to navigate to
 
 - **Frontend**: HTML, CSS, JavaScript
 - **Backend**: Golang with GIN framework
-- **APIs**: YouTube Data API, OpenAI API (GPT-4o-mini)
+- **APIs**: OpenAI API
 
 ## Project Structure
 
