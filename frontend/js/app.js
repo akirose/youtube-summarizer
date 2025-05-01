@@ -215,6 +215,11 @@ function highlightCurrentTimestamp(currentTime) {
         }
     });
     
+    if (activeTimestamp.classList.contains('active')) {
+        // 이미 활성화된 타임스탬프는 스킵
+        return;
+    }
+
     // 현재 활성화된 타임스탬프들의 active 클래스 제거
     timestamps.forEach(el => el.classList.remove('active'));
     
