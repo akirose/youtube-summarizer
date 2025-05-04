@@ -346,3 +346,35 @@ body {
     border-radius: 4px;
     margin-bottom: 15px;
 }
+
+/* Add styles for the dropdown and its items */
+#dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background-color: #fff;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    max-height: 300px;
+    overflow-y: auto;
+    display: none; /* Hidden by default */
+}
+
+.dropdown-item {
+    padding: 10px;
+    font-size: 14px;
+    color: #333;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.dropdown-item:hover {
+    background-color: #f0f0f0;
+}
+
+.dropdown-item:active {
+    background-color: #e0e0e0;
+}

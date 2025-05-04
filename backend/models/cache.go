@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"sync"
 	"time"
 )
@@ -29,6 +30,63 @@ type CacheItem struct {
 type Timestamp struct {
 	Time int    `json:"time"`
 	Text string `json:"text"`
+}
+
+// VideoSummary represents the schema for storing video titles and summaries
+type VideoSummary struct {
+	VideoTitle string `json:"video_title"` // Title of the video
+	VideoID    string `json:"video_id"`    // Video ID
+}
+
+// GetRecentVideoSummaries retrieves the most recent 10 VideoSummary entries
+// Updated to include recent files from the cache directory
+func GetRecentVideoSummaries() []VideoSummary {
+	// Fetch all JSON files in the cache directory
+	files, err := filepath.Glob(filepath.Join("cache", "*.json"))
+	if err != nil {
+		fmt.Printf("Warning: Failed to list cache files: %v\n", err)
+		return nil
+	}
+
+	// Sort files by modification time in descending order
+	sort.Slice(files, func(i, j int) bool {
+		infoI, errI := os.Stat(files[i])
+		infoJ, errJ := os.Stat(files[j])
+		if errI != nil || errJ != nil {
+			return false
+		}
+		return infoI.ModTime().After(infoJ.ModTime())
+	})
+
+	// Limit to the most recent 15 files
+	if len(files) > 15 {
+		files = files[:15]
+	}
+
+	// Read and parse each file into VideoSummary
+	var recentSummaries []VideoSummary
+	for _, file := range files {
+		f, err := os.Open(file)
+		if err != nil {
+			fmt.Printf("Warning: Failed to open cache file %s: %v\n", file, err)
+			continue
+		}
+		defer f.Close()
+
+		var item CacheItem
+		decoder := json.NewDecoder(f)
+		if err := decoder.Decode(&item); err != nil {
+			fmt.Printf("Warning: Failed to decode cache file %s: %v\n", file, err)
+			continue
+		}
+
+		recentSummaries = append(recentSummaries, VideoSummary{
+			VideoTitle: item.Title,
+			VideoID:    item.VideoID,
+		})
+	}
+
+	return recentSummaries
 }
 
 // NewSummaryCache creates a new cache

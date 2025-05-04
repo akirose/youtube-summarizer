@@ -22,14 +22,20 @@ function init() {
     searchForm.addEventListener('submit', handleSearch);
     videoUrlInput.addEventListener('input', toggleClearButton);
     clearBtn.addEventListener('click', clearInput);
-    
+
     // Check if URL has video parameter
     const urlParams = new URLSearchParams(window.location.search);
     const videoUrl = urlParams.get('video');
-    
+
     if (videoUrl) {
         videoUrlInput.value = videoUrl;
-        handleSearch(new Event('submit'));
+        // Delay search execution until API is ready
+        if (apiReady) {
+            handleSearch(new Event('submit'));
+        } else {
+            pendingVideoId = extractVideoId(videoUrl);
+            console.log('YouTube API not ready yet. Video will load when API is ready.');
+        }
     }
 }
 
@@ -385,9 +391,9 @@ function formatSummaryText(summary) {
 
 // Add clickable timestamps to summary text
 function addClickableTimestamps(summary, timestamps) {
-    if (!timestamps || timestamps.length === 0) {
-        return summary;
-    }
+    // if (!timestamps || timestamps.length === 0) {
+    //     return summary;
+    // }
     
     let result = summary;
     
@@ -463,16 +469,69 @@ function displayError(error) {
     `;
 }
 
-// YouTube IFrame API 준비 완료 핸들러
+// YouTube IFrame API ready callback
 function onYouTubeIframeAPIReady() {
     console.log('YouTube IFrame API is ready');
     apiReady = true;
-    
-    // 대기 중인 비디오가 있으면 로드
+
+    // Load pending video if any
     if (pendingVideoId) {
-        loadYouTubeVideo(pendingVideoId);
+        handleSearch(new Event('submit'));
     }
 }
 
 // Initialize the app when the DOM is loaded
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', () => {
+    init();
+
+    const urlInput = document.getElementById("video-url");
+    const dropdown = document.getElementById("dropdown");
+
+    // Fetch recent video titles from the backend
+    async function fetchRecentTitles() {
+        try {
+            const response = await fetch("/api/recent-summaries");
+            if (!response.ok) {
+                throw new Error("Failed to fetch recent summaries");
+            }
+            const summaries = await response.json();
+            populateDropdown(summaries);
+        } catch (error) {
+            console.error("Error fetching recent summaries:", error);
+        }
+    }
+
+    // Populate the dropdown with video titles
+    function populateDropdown(summaries) {
+        dropdown.innerHTML = ""; // Clear existing items
+        summaries.forEach((summary) => {
+            const item = document.createElement("div");
+            item.className = "dropdown-item";
+            item.textContent = summary['video_title'];
+            item.addEventListener("click", () => {
+                // Navigate to the summary page for the selected video
+                window.location.href = `/?video=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3D${summary.video_id}`;
+            });
+            dropdown.appendChild(item);
+        });
+        dropdown.style.display = "block";
+
+        // Adjust dropdown positioning to appear directly below the search input
+        const urlInputRect = urlInput.getBoundingClientRect();
+        dropdown.style.position = "absolute";
+        dropdown.style.top = `${urlInputRect.bottom + window.scrollY + 10}px`;
+        dropdown.style.left = `${urlInputRect.left + window.scrollX - 8}px`;
+        dropdown.style.width = `${urlInputRect.width}px`;
+        dropdown.style.zIndex = "1000";
+    }
+
+    // Show dropdown on input focus
+    urlInput.addEventListener("focus", fetchRecentTitles);
+
+    // Hide dropdown when clicking outside
+    document.addEventListener("click", (event) => {
+        if (!urlInput.contains(event.target) && !dropdown.contains(event.target)) {
+            dropdown.style.display = "none";
+        }
+    });
+});

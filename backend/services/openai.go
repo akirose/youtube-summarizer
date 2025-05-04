@@ -24,67 +24,59 @@ const (
 	MaxTokens = 3000
 
 	// System prompt template for summarization
-	SummarizationPrompt = `<prompt>
-
-<role>
-You are a content analyst, skilled in extracting and summarizing video content and formatting. Your expertise lies in accurately summarizing complex information and presenting it in a structured, professional manner.
+	SummarizationPrompt = `<role>
+당신은 비디오 콘텐츠를 추출하고 요약하는 데 능숙한 콘텐츠 분석가입니다. 복잡한 정보를 정확하게 요약하고 구조화된 전문적인 방식으로 제시하는 데 전문성을 가지고 있습니다.
 </role>
 
 <instructions>
-1. Summarize the video content:
-   - Identify the video title and main topics discussed in the video.
-   - Be structured with clear paragraphs
-   - Focus on the most valuable information
-   - Include important timestamps in the format [MM:SS] at the beginning of relevant topic.
-   - Ensure the summary captures the essence of the video content accurately.
-   - All results are written in Korean.
+1. 비디오 콘텐츠 요약:
+   - 비디오 제목과 비디오에서 논의된 주요 주제를 식별합니다.
+   - 명확한 단락으로 구조화합니다.
+   - 가장 가치 있는 정보에 초점을 맞춥니다.
+   - 관련 주제 시작 부분에 [MM:SS] 형식의 중요한 타임스탬프를 포함합니다.
+   - 요약이 비디오 콘텐츠의 본질을 정확하게 담아내도록 합니다.
+   - 모든 결과는 한국어로 작성됩니다.
 
-2. Format summary
-   - Create a header with the video title.
-   - Use section blocks to list the topics with their respective timestamps.
-   - Add a context block for additional information or notes.
+2. 요약 형식:
+   - 각 주제와 해당 타임스탬프를 나열하기 위해 일반 텍스트 형식을 사용합니다.
 
-3. Handle potential errors:
-   - If the summary cannot be generated, indicate the issue and suggest reviewing the video content manually.
+3. 잠재적 오류 처리:
+   - 요약을 생성할 수 없는 경우 문제를 표시하고 비디오 콘텐츠를 수동으로 검토할 것을 제안합니다.
 
-4. Maintain a clear, structured, and professional tone throughout the process.
+4. 전체 과정에서 명확하고 구조화되며 전문적인 어조를 유지합니다.
 </instructions>
 
 <response_style>
-Your response should be clear, structured, and professional. Use concise language to convey the summary and ensure the message is formatted correctly. Maintain a focus on accuracy and clarity in both the summary and the message.
+응답은 명확하고 구조화되며 전문적이어야 합니다. 간결한 언어를 사용하여 요약을 전달하고 메시지가 올바르게 형식화되도록 합니다. 요약과 메시지 모두에서 정확성과 명확성에 중점을 둡니다.
 </response_style>
 
 <examples>
-Example:
+예시:
 <thinking_process>
-1. Extract the video title and main topics with timestamps.
-2. Format the summary using header, section, and context.
+1. 비디오 제목과 타임스탬프가 있는 주요 주제를 추출합니다.
+2. 헤더, 섹션 및 컨텍스트를 사용하여 요약을 형식화합니다.
 </thinking_process>
 
 <final_response>
-Message Format:
-[Timestamp] Topic
-  - summarized content
+[MM:SS] 주제
+  - 요약된 내용
   - ...
-[Timestamp] Topic
-  - summarized content
+[MM:SS] 주제
+  - 요약된 내용
   - ...
-
-Additional notes or information
 </final_response>
 </examples>
 
 <reminder>
-- Ensure the video content is accurately summarized.
-- Use the specified format for the message.
-- Handle potential errors in downloading or summarizing the video.
+- 비디오 콘텐츠가 정확하게 요약되었는지 확인합니다.
+- 메시지에 지정된 형식을 사용합니다.
+- 비디오 다운로드 또는 요약에서 발생할 수 있는 오류를 처리합니다.
 </reminder>
 
 <output_format>
-Structure your output as follows:
-[Provide the formatted message in Plain Text]
-</output_format>
-</prompt>`
+다음과 같이 출력을 구성하세요:
+[Plain Text로 형식화된 메시지 제공]
+</output_format>`
 )
 
 // TimestampInfo represents a timestamp in the summary
@@ -280,4 +272,48 @@ func extractTimestamps(summary string) []TimestampInfo {
 	}
 
 	return timestamps
+}
+
+// SummarizeChunks processes each transcript chunk, summarizes it, and combines the summaries into a final summary
+func SummarizeChunks(chunks [][]TranscriptItem) (string, error) {
+	var finalSummary strings.Builder
+
+	for i, chunk := range chunks {
+		// Summarize the chunk
+		summary, _, err := SummarizeTranscript(GetFormattedTranscript(chunk))
+		if err != nil {
+			return "", fmt.Errorf("failed to summarize chunk %d: %v", i+1, err)
+		}
+
+		// Append the chunk summary to the final summary
+		finalSummary.WriteString(summary + "\n\n")
+	}
+
+	return finalSummary.String(), nil
+}
+
+// GetFormattedTranscript formats the transcript items into a single string
+func GetFormattedTranscript(items []TranscriptItem) string {
+	var builder strings.Builder
+
+	for _, item := range items {
+		builder.WriteString(fmt.Sprintf("[%s]", FormatTimestamp(item.Start)))
+		builder.WriteString(item.Text)
+		builder.WriteString(" ")
+	}
+
+	return strings.TrimSpace(builder.String())
+}
+
+// FormatTimestamp converts a float64 timestamp in seconds to [MM:SS] format
+func FormatTimestamp(seconds float64) string {
+	// Round to nearest second
+	totalSeconds := int(seconds + 0.5)
+
+	// Calculate minutes and remaining seconds
+	minutes := totalSeconds / 60
+	remainingSeconds := totalSeconds % 60
+
+	// Format as [MM:SS]
+	return fmt.Sprintf("[%02d:%02d]", minutes, remainingSeconds)
 }

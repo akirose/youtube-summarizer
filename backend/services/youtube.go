@@ -119,8 +119,8 @@ func GetVideoInfo(videoID string) (*VideoInfo, error) {
 }
 
 // GetTranscript fetches the transcript for a YouTube video using yt-dlp
-// GetTranscript fetches the transcript for a YouTube video using yt-dlp
-func GetTranscript(videoID string) ([]TranscriptItem, error) {
+// Add a new parameter chunkSize to specify the size of each chunk in seconds
+func GetTranscript(videoID string, chunkSize float64) ([][]TranscriptItem, error) {
 	// Validate the video ID to prevent command injection
 	validIDPattern := regexp.MustCompile(`^[a-zA-Z0-9_-]{11}$`)
 	if !validIDPattern.MatchString(videoID) {
@@ -200,7 +200,31 @@ func GetTranscript(videoID string) ([]TranscriptItem, error) {
 	// Merge consecutive transcript items that are very close in time
 	allTranscriptItems = MergeConsecutiveTranscriptItems(allTranscriptItems)
 
-	return allTranscriptItems, nil
+	// Split transcript items into chunks
+	var chunks [][]TranscriptItem
+	var currentChunk []TranscriptItem
+	var currentChunkStart float64
+
+	for _, item := range allTranscriptItems {
+		if len(currentChunk) == 0 {
+			currentChunkStart = item.Start
+		}
+
+		if item.Start-currentChunkStart < chunkSize {
+			currentChunk = append(currentChunk, item)
+		} else {
+			chunks = append(chunks, currentChunk)
+			currentChunk = []TranscriptItem{item}
+			currentChunkStart = item.Start
+		}
+	}
+
+	// Add the last chunk if it exists
+	if len(currentChunk) > 0 {
+		chunks = append(chunks, currentChunk)
+	}
+
+	return chunks, nil
 }
 
 // parseVttContent converts VTT content to TranscriptItem array
@@ -372,30 +396,4 @@ func MergeConsecutiveTranscriptItems(items []TranscriptItem) []TranscriptItem {
 	}
 
 	return merged
-}
-
-// GetFormattedTranscript formats the transcript items into a single string
-func GetFormattedTranscript(items []TranscriptItem) string {
-	var builder strings.Builder
-
-	for _, item := range items {
-		builder.WriteString(fmt.Sprintf("[%s]", FormatTimestamp(item.Start)))
-		builder.WriteString(item.Text)
-		builder.WriteString(" ")
-	}
-
-	return strings.TrimSpace(builder.String())
-}
-
-// FormatTimestamp converts a float64 timestamp in seconds to [MM:SS] format
-func FormatTimestamp(seconds float64) string {
-	// Round to nearest second
-	totalSeconds := int(seconds + 0.5)
-
-	// Calculate minutes and remaining seconds
-	minutes := totalSeconds / 60
-	remainingSeconds := totalSeconds % 60
-
-	// Format as [MM:SS]
-	return fmt.Sprintf("[%02d:%02d]", minutes, remainingSeconds)
 }

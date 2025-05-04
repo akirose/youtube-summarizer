@@ -17,11 +17,11 @@ type SummaryRequest struct {
 
 // SummaryResponse represents the response with the video summary
 type SummaryResponse struct {
-	VideoID    string            `json:"videoId"`
-	Title      string            `json:"title"`
-	Summary    string            `json:"summary"`
+	VideoID    string             `json:"videoId"`
+	Title      string             `json:"title"`
+	Summary    string             `json:"summary"`
 	Timestamps []models.Timestamp `json:"timestamps"`
-	Cached     bool              `json:"cached"`
+	Cached     bool               `json:"cached"`
 }
 
 // Global cache instance
@@ -103,8 +103,8 @@ func HandleSummaryRequest(c *gin.Context) {
 		return
 	}
 
-	// Get video transcript
-	transcript, err := services.GetTranscript(videoID)
+	// Get video transcript in chunks
+	chunks, err := services.GetTranscript(videoID, 800.0) // Chunk size of 800 seconds
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to get video transcript: " + err.Error(),
@@ -112,28 +112,20 @@ func HandleSummaryRequest(c *gin.Context) {
 		return
 	}
 
-	// Format transcript for summarization
-	formattedTranscript := services.GetFormattedTranscript(transcript)
-
-	// Generate summary using OpenAI
-	summary, timestampsInfo, err := services.SummarizeTranscript(formattedTranscript)
+	// Summarize chunks and combine into final summary
+	summary, err := services.SummarizeChunks(chunks)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to generate summary: " + err.Error(),
+			"error": "Failed to summarize transcript chunks: " + err.Error(),
 		})
 		return
 	}
 
-	// Convert timestamp info to model timestamps
-	timestamps := convertTimestamps(timestampsInfo)
-
 	// Cache the result
 	if summaryCache != nil {
-		if err := summaryCache.Set(videoID, videoInfo.Title, summary, timestamps); err != nil {
-			// Just log the error, don't fail the request
-			// Using default logger since we don't have a global logger yet
+		if err := summaryCache.Set(videoID, videoInfo.Title, summary, nil); err != nil {
+			// Log the error but don't fail the request
 			// TODO: Implement proper logging
-			// global.Logger.Printf("Failed to cache summary: %v", err)
 		}
 	}
 
@@ -142,7 +134,18 @@ func HandleSummaryRequest(c *gin.Context) {
 		VideoID:    videoID,
 		Title:      videoInfo.Title,
 		Summary:    summary,
-		Timestamps: timestamps,
+		Timestamps: nil, // Timestamps are not used in this flow
 		Cached:     false,
 	})
+}
+
+// GetRecentSummariesHandler handles requests to fetch the last 10 video summaries
+func GetRecentSummariesHandler(c *gin.Context) {
+	c.Header("Content-Type", "application/json")
+
+	// Fetch the recent 10 video summaries
+	summaries := models.GetRecentVideoSummaries()
+
+	// Respond with the summaries in JSON format
+	c.JSON(http.StatusOK, summaries)
 }
