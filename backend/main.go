@@ -40,6 +40,7 @@ func main() {
 	apiGroup := router.Group("/api")
 	{
 		apiGroup.POST("/summary", api.HandleSummaryRequest)
+		apiGroup.GET("/recent-summaries", api.GetRecentSummariesHandler)
 	}
 
 	// Start server
