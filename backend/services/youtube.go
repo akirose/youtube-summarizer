@@ -159,6 +159,12 @@ func GetTranscript(videoID string, chunkSize float64) ([][]TranscriptItem, error
 		return nil, fmt.Errorf("yt-dlp failed to download subtitles: %v - %s", err, stderr.String())
 	}
 
+	// Process subtitle files and split them into chunks
+	return processSubtitleFiles(tempDir, chunkSize)
+}
+
+// Extracts and processes subtitle files from a temporary directory
+func processSubtitleFiles(tempDir string, chunkSize float64) ([][]TranscriptItem, error) {
 	// Read files from the temp directory
 	files, err := os.ReadDir(tempDir)
 	if err != nil {
@@ -198,7 +204,7 @@ func GetTranscript(videoID string, chunkSize float64) ([][]TranscriptItem, error
 	sortTranscriptItemsByTime(allTranscriptItems)
 
 	// Merge consecutive transcript items that are very close in time
-	allTranscriptItems = MergeConsecutiveTranscriptItems(allTranscriptItems)
+	// allTranscriptItems = MergeConsecutiveTranscriptItems(allTranscriptItems)
 
 	// Split transcript items into chunks
 	var chunks [][]TranscriptItem
@@ -369,31 +375,4 @@ func cleanTranscriptText(text string) string {
 	text = artifactRegex.ReplaceAllString(text, "")
 
 	return strings.TrimSpace(text)
-}
-
-// MergeConsecutiveTranscriptItems merges items with the same timestamp or very close timestamps
-func MergeConsecutiveTranscriptItems(items []TranscriptItem) []TranscriptItem {
-	if len(items) <= 1 {
-		return items
-	}
-
-	merged := []TranscriptItem{items[0]}
-	current := 0
-
-	for i := 1; i < len(items); i++ {
-		// If this item starts very close to the end of the previous one (less than 0.3 seconds)
-		prevEnd := merged[current].Start + merged[current].Duration
-		if items[i].Start-prevEnd < 0.3 {
-			// Merge with the previous item
-			merged[current].Text += " " + items[i].Text
-			// Update duration to cover both items
-			merged[current].Duration = (items[i].Start + items[i].Duration) - merged[current].Start
-		} else {
-			// Add as a new item
-			merged = append(merged, items[i])
-			current++
-		}
-	}
-
-	return merged
 }

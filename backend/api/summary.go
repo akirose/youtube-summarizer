@@ -46,18 +46,6 @@ func InitCache() error {
 	return err
 }
 
-// Convert TimestampInfo to Timestamp
-func convertTimestamps(timestamps []services.TimestampInfo) []models.Timestamp {
-	result := make([]models.Timestamp, len(timestamps))
-	for i, ts := range timestamps {
-		result[i] = models.Timestamp{
-			Time: ts.Time,
-			Text: ts.Text,
-		}
-	}
-	return result
-}
-
 // HandleSummaryRequest processes a request to summarize a YouTube video
 func HandleSummaryRequest(c *gin.Context) {
 	var request SummaryRequest

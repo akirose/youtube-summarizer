@@ -9,6 +9,7 @@ backend/cache/
 backend/__debug*
 presentation/
 **/*.tar.gz
+dist/
 
 # Added by Claude Task Master
 # Logs

@@ -18,65 +18,59 @@ const (
 	OpenAIAPIURL = "https://api.openai.com/v1/chat/completions"
 
 	// Model to use
-	Model = "gpt-4o-mini" // Ensure this is the correct model ID
+	Model = "gpt-4.1-nano" // Ensure this is the correct model ID
 
 	// Maximum number of tokens to generate
-	MaxTokens = 3000
+	MaxTokens = 1500
 
 	// System prompt template for summarization
-	SummarizationPrompt = `<role>
-당신은 비디오 콘텐츠를 추출하고 요약하는 데 능숙한 콘텐츠 분석가입니다. 복잡한 정보를 정확하게 요약하고 구조화된 전문적인 방식으로 제시하는 데 전문성을 가지고 있습니다.
-</role>
+	SummarizationPrompt = `# YouTube Video Summarization Expert
 
-<instructions>
-1. 비디오 콘텐츠 요약:
-   - 비디오 제목과 비디오에서 논의된 주요 주제를 식별합니다.
-   - 명확한 단락으로 구조화합니다.
-   - 가장 가치 있는 정보에 초점을 맞춥니다.
-   - 관련 주제 시작 부분에 [MM:SS] 형식의 중요한 타임스탬프를 포함합니다.
-   - 요약이 비디오 콘텐츠의 본질을 정확하게 담아내도록 합니다.
-   - 모든 결과는 한국어로 작성됩니다.
+## Role
+You are a specialist in analyzing YouTube video content and summarizing it by key topics. You deeply understand the video content, extract important topics and timestamps, and provide concise summaries in Korean.
 
-2. 요약 형식:
-   - 각 주제와 해당 타임스탬프를 나열하기 위해 일반 텍스트 형식을 사용합니다.
+## Objective
+Analyze the YouTube video content provided by the user and deliver a structured summary of the main topics and key points organized by timestamps.
 
-3. 잠재적 오류 처리:
-   - 요약을 생성할 수 없는 경우 문제를 표시하고 비디오 콘텐츠를 수동으로 검토할 것을 제안합니다.
+## Process
 
-4. 전체 과정에서 명확하고 구조화되며 전문적인 어조를 유지합니다.
-</instructions>
+1. **Content Analysis**
+   - Identify the main topics, discussion points, and concepts explained in the video.
+   - Record important timestamps.
+   - **Carefully identify clear topic transitions and significant subject changes.**
 
-<response_style>
-응답은 명확하고 구조화되며 전문적이어야 합니다. 간결한 언어를 사용하여 요약을 전달하고 메시지가 올바르게 형식화되도록 합니다. 요약과 메시지 모두에서 정확성과 명확성에 중점을 둡니다.
-</response_style>
+2. **Content Structuring and Organization**
+   - Structure the video content by logical topics.
+   - Display the start time for each topic in [MM:SS] format.
+   - Group content related to the same topic.
+   - Remove unnecessary repetition, meaningless content, and filler words.
+   - **Ensure sufficient time intervals between topics - avoid creating too many topics with very short intervals.**
 
-<examples>
-예시:
-<thinking_process>
-1. 비디오 제목과 타임스탬프가 있는 주요 주제를 추출합니다.
-2. 헤더, 섹션 및 컨텍스트를 사용하여 요약을 형식화합니다.
-</thinking_process>
+3. **Summary Generation**
+   - Concisely summarize the core content for each topic.
+   - Write summaries in Korean using clear and easy-to-understand language.
+   - Structure each topic's summary as concise statements separated by bullet points (-).
 
-<final_response>
-[MM:SS] 주제
-  - 요약된 내용
-  - ...
-[MM:SS] 주제
-  - 요약된 내용
-  - ...
-</final_response>
-</examples>
+## Output Format
+Summaries are provided in the following format:
 
-<reminder>
-- 비디오 콘텐츠가 정확하게 요약되었는지 확인합니다.
-- 메시지에 지정된 형식을 사용합니다.
-- 비디오 다운로드 또는 요약에서 발생할 수 있는 오류를 처리합니다.
-</reminder>
+[MM:SS] Topic 1
+- Key point 1
+- Key point 2
+- ...
 
-<output_format>
-다음과 같이 출력을 구성하세요:
-[Plain Text로 형식화된 메시지 제공]
-</output_format>`
+[MM:SS] Topic 2
+- Key point 1
+- Key point 2
+- ...
+
+## Notes
+- Do not include any introduction or additional comments beyond the summary.
+- Focus on identifying accurate timestamps and topics.
+- Provide all content in Korean.
+- Include only key points and omit unnecessary details.
+- **It is critical to capture clear topic transitions when selecting topics - avoid creating topics for minor shifts in conversation.**
+- **Maintain meaningful time intervals between topics - topics that are too close together (with only a few seconds difference) should be combined.**`
 )
 
 // TimestampInfo represents a timestamp in the summary
@@ -146,7 +140,7 @@ func SummarizeTranscript(transcript string) (string, []TimestampInfo, error) {
 	}
 
 	// Create the system prompt with the transcript
-	userPrompt := fmt.Sprintf("Transcript:\n%s", transcript)
+	userPrompt := fmt.Sprintf("Transcript: %s\n", transcript)
 
 	// Create the request body
 	requestBody := GPTRequest{
@@ -162,7 +156,7 @@ func SummarizeTranscript(transcript string) (string, []TimestampInfo, error) {
 			},
 		},
 		MaxTokens:   apiMaxTokens,
-		Temperature: 0.5,
+		Temperature: 0.2,
 	}
 
 	// Convert request body to JSON
@@ -297,9 +291,7 @@ func GetFormattedTranscript(items []TranscriptItem) string {
 	var builder strings.Builder
 
 	for _, item := range items {
-		builder.WriteString(fmt.Sprintf("[%s]", FormatTimestamp(item.Start)))
-		builder.WriteString(item.Text)
-		builder.WriteString(" ")
+		builder.WriteString(fmt.Sprintf("[%s] %s\n", FormatTimestamp(item.Start), item.Text))
 	}
 
 	return strings.TrimSpace(builder.String())
@@ -308,7 +300,7 @@ func GetFormattedTranscript(items []TranscriptItem) string {
 // FormatTimestamp converts a float64 timestamp in seconds to [MM:SS] format
 func FormatTimestamp(seconds float64) string {
 	// Round to nearest second
-	totalSeconds := int(seconds + 0.5)
+	totalSeconds := int(seconds)
 
 	// Calculate minutes and remaining seconds
 	minutes := totalSeconds / 60

@@ -1,7 +1,7 @@
 .PHONY: run build test clean setup
 
 # Default target
-all: run
+all: clean build
 
 # Setup project
 setup:
@@ -20,7 +20,10 @@ run: setup
 # Build the application
 build: setup
 	@echo "Building YouTube Video Summarizer..."
-	@cd backend && go build -o ../youtube-summarizer
+	@mkdir -p dist/backend
+	@cd backend && GOOS=${GOOS} GOARCH=${GOARCH} go build -o ../dist/backend/
+	@cp -r backend/.env.example dist/backend/
+	@cp -r frontend dist/
 
 # Run tests
 test:
@@ -30,7 +33,7 @@ test:
 # Clean build artifacts
 clean:
 	@echo "Cleaning build artifacts..."
-	@rm -f youtube-summarizer
+	@rm -rf dist
 	@cd backend && go clean
 
 # Help target
