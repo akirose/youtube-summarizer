@@ -55,6 +55,12 @@ async function init() {
     saveApiKeyBtn.addEventListener('click', saveApiKey);
     cancelApiKeyBtn.addEventListener('click', closeApiKeyModal);
     
+    // Settings 버튼 이벤트 리스너 추가
+    const settingsBtn = document.getElementById('settings-btn');
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', showApiKeyModal);
+    }
+    
     // 드롭다운 토글을 위한 이벤트 리스너 추가
     document.addEventListener('click', handleDropdownToggle);
 
@@ -90,7 +96,7 @@ function clearInput() {
     videoUrlInput.focus();
 }
 
-// Handle video URL input click
+// Handle video URL input click with improved API key check
 function handleVideoUrlInputClick(event) {
     // 로그인 상태 확인
     if (!isLoggedIn) {
@@ -100,9 +106,28 @@ function handleVideoUrlInputClick(event) {
         return;
     }
     
-    // 로그인 상태이지만 API 키가 없는 경우
-    if (!getEncryptedApiKey()) {
-        // 모달 표시 전 기본 동작 방지
+    // API 키 유효성 확인 (암호화된 키의 존재 및 복호화 테스트)
+    const encryptedKey = getEncryptedApiKey();
+    if (!encryptedKey) {
+        // API 키가 저장되어 있지 않은 경우
+        event.preventDefault();
+        showApiKeyModal();
+        return;
+    }
+    
+    // 암호화된 키가 있지만 복호화가 불가능한 경우 (사용자가 변경되었거나 손상된 경우)
+    try {
+        const decryptedKey = decryptApiKey(encryptedKey);
+        if (!decryptedKey || !isValidOpenAIApiKey(decryptedKey)) {
+            // 유효하지 않은 키인 경우 재설정하도록 안내
+            localStorage.removeItem(`apikey_${userProfile.id}`); // 손상된 키 제거
+            event.preventDefault();
+            showApiKeyModal();
+            return;
+        }
+    } catch (error) {
+        console.error('API key validation error:', error);
+        localStorage.removeItem(`apikey_${userProfile.id}`); // 손상된 키 제거
         event.preventDefault();
         showApiKeyModal();
         return;
@@ -319,10 +344,8 @@ function handleLogout() {
     });
 }
 
-// Encrypt API key
+// Encrypt API key - 보안 강화 버전
 function encryptApiKey(apiKey) {
-    // 실제 구현에서는 보안을 위해 적절한 암호화 방식 사용 
-    // 이 예시에서는 보안을 위해 사용자 ID를 솔트로 사용한 간단한 인코딩
     if (!userProfile || !userProfile.id) {
         console.error('User not logged in');
         return null;
@@ -330,18 +353,24 @@ function encryptApiKey(apiKey) {
     
     try {
         const salt = userProfile.id;
-        // 실제 애플리케이션에서는 CryptoJS나 WebCrypto API 사용 권장
-        const encoded = btoa(apiKey + ':' + salt);
-        return encoded;
+        // AES 암호화를 시뮬레이션하는 간단한 XOR 기반 암호화
+        // 실제 프로덕션에서는 Web Crypto API 사용을 권장
+        let encrypted = '';
+        for (let i = 0; i < apiKey.length; i++) {
+            // 사용자 ID와 순서 기반 XOR 연산으로 간단한 암호화
+            const charCode = apiKey.charCodeAt(i) ^ salt.charCodeAt(i % salt.length) ^ i;
+            encrypted += String.fromCharCode(charCode);
+        }
+        // base64 인코딩으로 저장
+        return btoa(encrypted + '|' + salt);
     } catch (error) {
         console.error('Error encrypting API key:', error);
         return null;
     }
 }
 
-// Decrypt API key
+// Decrypt API key - 보안 강화 버전
 function decryptApiKey(encryptedKey) {
-    // 실제 구현에서는 보안을 위해 적절한 복호화 방식 사용
     if (!userProfile || !userProfile.id) {
         console.error('User not logged in');
         return null;
@@ -349,34 +378,52 @@ function decryptApiKey(encryptedKey) {
     
     try {
         const decoded = atob(encryptedKey);
+        const [encrypted, storedSalt] = function (str) {
+            const index = str.lastIndexOf('|');
+            if (index === -1) return [str];
+            return [str.slice(0, index), str.slice(index + 1)];
+        }(decoded);
         const salt = userProfile.id;
-        const [apiKey, keySalt] = decoded.split(':');
         
-        // 솔트가 일치하는지 확인
-        if (keySalt !== salt) {
+        // 저장된 솔트와 현재 사용자 ID가 일치하는지 확인
+        if (storedSalt !== salt) {
             console.error('Invalid API key: user mismatch');
             return null;
         }
         
-        return apiKey;
+        // 복호화 - 암호화의 역과정
+        let decrypted = '';
+        for (let i = 0; i < encrypted.length; i++) {
+            const charCode = encrypted.charCodeAt(i) ^ salt.charCodeAt(i % salt.length) ^ i;
+            decrypted += String.fromCharCode(charCode);
+        }
+        
+        return decrypted;
     } catch (error) {
         console.error('Error decrypting API key:', error);
         return null;
     }
 }
 
-// Save API key
+// Save API key with improved validation
 function saveApiKey() {
     const apiKey = apiKeyInput.value.trim();
     
     if (!apiKey) {
-        alert('Please enter a valid API key');
+        alert('API 키를 입력해주세요.');
         return;
     }
     
-    // API 키 유효성 검사 (간단한 형식 체크)
-    if (!apiKey.startsWith('sk-')) {
-        alert('Please enter a valid OpenAI API key (starts with sk-)');
+    // API 키 유효성 검사 강화
+    if (!isValidOpenAIApiKey(apiKey)) {
+        alert('유효한 OpenAI API 키를 입력해주세요.');
+        return;
+    }
+    
+    // 로그인 상태 확인
+    if (!isLoggedIn || !userProfile || !userProfile.id) {
+        alert('API 키를 저장하려면 로그인이 필요합니다.');
+        showLoginModal();
         return;
     }
     
@@ -386,9 +433,50 @@ function saveApiKey() {
         localStorage.setItem(`apikey_${userProfile.id}`, encryptedKey);
         apiKeyInput.value = '';
         closeApiKeyModal();
+        
+        // 성공 메시지 표시 (선택사항)
+        const successMessage = document.createElement('div');
+        successMessage.className = 'success-message';
+        successMessage.textContent = 'API 키가 성공적으로 저장되었습니다.';
+        document.body.appendChild(successMessage);
+        
+        // 3초 후 메시지 제거
+        setTimeout(() => {
+            successMessage.style.opacity = '0';
+            setTimeout(() => document.body.removeChild(successMessage), 500);
+        }, 3000);
     } else {
-        alert('Failed to securely store API key');
+        alert('API 키 저장 중 오류가 발생했습니다.');
     }
+}
+
+// Validate OpenAI API key format
+function isValidOpenAIApiKey(apiKey) {
+    // OpenAI API 키는 'sk-'로 시작하며 일반적으로 51~52자입니다
+    const validFormat = /^sk-[A-Za-z0-9-_]+$/.test(apiKey);
+    
+    if (!validFormat) {
+        // 기본 형식 검사 실패
+        return false;
+    }
+    
+    // 추가 검사: 잠재적으로 조작된 키를 감지하기 위한 간단한 검사
+    // (실제 API에서 검증되지 않을 가능성이 높은 특정 패턴 차단)
+    const suspiciousPatterns = [
+        /sk-test/i,      // 테스트 키 패턴
+        /sk-sample/i,    // 샘플 키 패턴
+        /sk-fake/i,      // 가짜 키 패턴
+        /^sk-[0]+$/      // 모든 숫자가 0인 패턴
+    ];
+    
+    // 의심스러운 패턴이 있는지 확인
+    for (const pattern of suspiciousPatterns) {
+        if (pattern.test(apiKey)) {
+            return false;
+        }
+    }
+    
+    return true;
 }
 
 // Get encrypted API key

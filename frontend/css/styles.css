@@ -750,3 +750,20 @@ body {
 .hidden {
     display: none;
 }
+
+/* Success Message for API Key Saved */
+.success-message {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+    border-radius: 4px;
+    padding: 12px 20px;
+    font-size: 14px;
+    z-index: 3000;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    opacity: 1;
+    transition: opacity 0.5s ease;
+}
