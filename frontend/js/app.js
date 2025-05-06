@@ -4,6 +4,9 @@ let currentVideoId = null;
 let apiReady = false; // YouTube API 준비 상태 추적
 let pendingVideoId = null; // API 준비 전에 로드할 비디오 ID 저장
 let timeUpdateInterval; // Player 상태를 추적하는 변수 추가
+let isLoggedIn = false; // 로그인 상태 추적
+let userProfile = null; // 사용자 프로필 정보 저장
+let googleAuth = null; // Google 인증 객체
 
 // DOM elements
 const searchForm = document.getElementById('search-form');
@@ -15,13 +18,45 @@ const resultsContainer = document.getElementById('results-container');
 const videoTitle = document.getElementById('video-title');
 const summaryElement = document.getElementById('summary');
 const loadingElement = document.getElementById('loading');
+const loginButton = document.getElementById('login-button');
+const userDropdown = document.getElementById('user-dropdown');
+const loginModal = document.getElementById('login-modal');
+const closeLoginModalBtn = document.getElementById('close-login-modal');
+const googleLoginBtn = document.getElementById('google-login-btn');
+const logoutBtn = document.getElementById('logout-btn');
+const apiKeyModal = document.getElementById('api-key-modal');
+const closeApiKeyModalBtn = document.getElementById('close-api-key-modal');
+const saveApiKeyBtn = document.getElementById('save-api-key-btn');
+const cancelApiKeyBtn = document.getElementById('cancel-api-key-btn');
+const apiKeyInput = document.getElementById('api-key-input');
+const userProfileContainer = document.getElementById('user-profile');
+const userAvatar = document.getElementById('user-avatar');
+const userAvatarDropdown = document.getElementById('user-avatar-dropdown');
+const userName = document.getElementById('user-name');
 
 // Initialize the application
-function init() {
+async function init() {
+    await checkLoginStatus();
+    
     // Add event listeners
     searchForm.addEventListener('submit', handleSearch);
     videoUrlInput.addEventListener('input', toggleClearButton);
     clearBtn.addEventListener('click', clearInput);
+    videoUrlInput.addEventListener('click', handleVideoUrlInputClick);
+    
+    // Login button event listeners
+    loginButton.addEventListener('click', showLoginModal);
+    closeLoginModalBtn.addEventListener('click', closeLoginModal);
+    googleLoginBtn.addEventListener('click', handleGoogleLogin);
+    logoutBtn.addEventListener('click', handleLogout);
+    
+    // API Key Modal event listeners
+    closeApiKeyModalBtn.addEventListener('click', closeApiKeyModal);
+    saveApiKeyBtn.addEventListener('click', saveApiKey);
+    cancelApiKeyBtn.addEventListener('click', closeApiKeyModal);
+    
+    // 드롭다운 토글을 위한 이벤트 리스너 추가
+    document.addEventListener('click', handleDropdownToggle);
 
     // Check if URL has video parameter
     const urlParams = new URLSearchParams(window.location.search);
@@ -55,9 +90,341 @@ function clearInput() {
     videoUrlInput.focus();
 }
 
+// Handle video URL input click
+function handleVideoUrlInputClick(event) {
+    // 로그인 상태 확인
+    if (!isLoggedIn) {
+        // 모달 표시 전 기본 동작 방지
+        event.preventDefault();
+        showLoginModal();
+        return;
+    }
+    
+    // 로그인 상태이지만 API 키가 없는 경우
+    if (!getEncryptedApiKey()) {
+        // 모달 표시 전 기본 동작 방지
+        event.preventDefault();
+        showApiKeyModal();
+        return;
+    }
+}
+
+// Check login status with backend verification
+async function checkLoginStatus() {
+    try {
+        // 백엔드 API를 통해 로그인 상태 확인
+        const response = await fetch('/user/info', {
+            method: 'GET',
+            credentials: 'include' // 중요: 쿠키 포함
+        });
+
+        if (!response.ok) {
+            throw new Error('Not authenticated');
+        }
+
+        const data = await response.json();
+        
+        if (data.authenticated && data.user) {
+            userProfile = data.user;
+            isLoggedIn = true;
+            updateUIForLoggedInUser();
+            
+            // 로컬 스토리지에 사용자 정보 저장 (선택적)
+            localStorage.setItem('user', JSON.stringify(userProfile));
+            
+            // API 키 설정 여부 확인
+            if (!getEncryptedApiKey()) {
+                console.log('No API key set for user, will prompt when needed');
+            }
+
+            console.log('User is authenticated:', userProfile);
+        } else {
+            handleNotAuthenticated();
+        }
+    } catch (error) {
+        console.error('Authentication check failed:', error);
+        handleNotAuthenticated();
+    }
+}
+
+// 인증되지 않은 경우 처리
+function handleNotAuthenticated() {
+    // 로컬 스토리지의 사용자 정보 제거
+    localStorage.removeItem('user');
+    
+    isLoggedIn = false;
+    userProfile = null;
+    updateUIForLoggedOutUser();
+}
+
+// Update UI for logged in user
+function updateUIForLoggedInUser() {
+    // 로그인 버튼 숨기기
+    loginButton.classList.add('hidden');
+    
+    // 사용자 프로필 컨테이너 및 아바타 표시
+    userProfileContainer.classList.add('show');
+    
+    // 사용자 정보 업데이트
+    if (userProfile) {
+        const avatarUrl = userProfile.picture || 'img/default-avatar.png';
+        
+        // 헤더의 프로필 정보 업데이트
+        if (userAvatar) {
+            userAvatar.src = avatarUrl;
+        }
+        if (userName) {
+            userName.textContent = userProfile.name || userProfile.email || 'User';
+        }
+        
+        // 드롭다운의 프로필 정보 업데이트
+        if (userAvatarDropdown) {
+            userAvatarDropdown.src = avatarUrl;
+        }
+        
+        const userNameDropdown = document.getElementById('user-name-dropdown');
+        const userEmail = document.querySelector('.user-email');
+        
+        if (userNameDropdown) {
+            userNameDropdown.textContent = userProfile.name || 'User';
+        }
+        if (userEmail && userProfile.email) {
+            userEmail.textContent = userProfile.email;
+        }
+    }
+    
+    // 드롭다운 메뉴는 기본적으로 숨겨진 상태로 유지
+    userDropdown.classList.remove('hidden');
+    userDropdown.classList.remove('show');
+}
+
+// Update UI for logged out user
+function updateUIForLoggedOutUser() {
+    // 로그인 버튼 표시
+    loginButton.classList.remove('hidden');
+    
+    // 사용자 프로필 컨테이너 및 드롭다운 숨기기
+    userProfileContainer.classList.remove('show');
+    userDropdown.classList.add('hidden');
+    userDropdown.classList.remove('show');
+    
+    // 프로필 정보 초기화
+    if (userAvatar) userAvatar.src = '';
+    if (userName) userName.textContent = '';
+    if (document.getElementById('user-avatar-dropdown')) {
+        document.getElementById('user-avatar-dropdown').src = '';
+    }
+    if (document.getElementById('user-name-dropdown')) {
+        document.getElementById('user-name-dropdown').textContent = '';
+    }
+    if (document.querySelector('.user-email')) {
+        document.querySelector('.user-email').textContent = '';
+    }
+}
+
+// Show login modal
+function showLoginModal() {
+    loginModal.classList.remove('hidden');
+    loginModal.classList.add('show');
+}
+
+// Close login modal
+function closeLoginModal() {
+    loginModal.classList.remove('show');
+    setTimeout(() => {
+        loginModal.classList.add('hidden');
+    }, 300);
+}
+
+// Show API key modal
+function showApiKeyModal() {
+    apiKeyModal.classList.remove('hidden');
+    apiKeyModal.classList.add('show');
+}
+
+// Close API key modal
+function closeApiKeyModal() {
+    apiKeyModal.classList.remove('show');
+    setTimeout(() => {
+        apiKeyModal.classList.add('hidden');
+    }, 300);
+}
+
+// Google 로그인 버튼 클릭 핸들러
+function handleGoogleLogin() {
+    // 팝업 창 열기로 OAuth 처리
+    const width = 500;
+    const height = 600;
+    const left = (window.innerWidth - width) / 2;
+    const top = (window.innerHeight - height) / 2;
+    
+    const popup = window.open(
+        '/auth/google',
+        'google-login',
+        `width=${width},height=${height},left=${left},top=${top},menubar=no,toolbar=no,location=no,status=no`
+    );
+    
+    // 팝업이 차단된 경우 처리
+    if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+        alert('팝업이 차단되었습니다. 이 사이트에서 팝업을 허용해주세요.');
+    }
+    
+    // 새 창 닫을 때 로그인 상태 확인
+    const checkPopupClosed = setInterval(() => {
+        if (popup.closed) {
+            clearInterval(checkPopupClosed);
+            // 로그인 상태 확인
+            checkLoginStatus();
+        }
+    }, 500);
+}
+
+// 메시지 이벤트 리스너 (OAuth 콜백에서 메시지 수신)
+window.addEventListener('message', function(event) {
+    // 모든 출처에서 메시지 수신 가능 (필요에 따라 제한)
+    if (event.data.type === 'GOOGLE_LOGIN_SUCCESS') {
+        // 백엔드에서 세션이 설정되었으므로 세션 상태를 확인
+        checkLoginStatus();
+        
+        // 모달 닫기
+        closeLoginModal();
+    }
+});
+
+// Handle logout with backend session cleanup
+function handleLogout() {
+    // 로컬 스토리지에서 사용자 정보 삭제
+    localStorage.removeItem('user');
+    
+    // 로그아웃 API 호출 - POST 메서드 사용
+    fetch('/auth/logout', { 
+        method: 'POST',
+        credentials: 'include' // 중요: 쿠키 포함
+    })
+    .then(response => {
+        if (!response.ok) {
+            console.error('Logout failed');
+        }
+    })
+    .catch(error => {
+        console.error('Error during logout:', error);
+    })
+    .finally(() => {
+        // 상태 업데이트
+        isLoggedIn = false;
+        userProfile = null;
+        
+        // UI 업데이트
+        updateUIForLoggedOutUser();
+    });
+}
+
+// Encrypt API key
+function encryptApiKey(apiKey) {
+    // 실제 구현에서는 보안을 위해 적절한 암호화 방식 사용 
+    // 이 예시에서는 보안을 위해 사용자 ID를 솔트로 사용한 간단한 인코딩
+    if (!userProfile || !userProfile.id) {
+        console.error('User not logged in');
+        return null;
+    }
+    
+    try {
+        const salt = userProfile.id;
+        // 실제 애플리케이션에서는 CryptoJS나 WebCrypto API 사용 권장
+        const encoded = btoa(apiKey + ':' + salt);
+        return encoded;
+    } catch (error) {
+        console.error('Error encrypting API key:', error);
+        return null;
+    }
+}
+
+// Decrypt API key
+function decryptApiKey(encryptedKey) {
+    // 실제 구현에서는 보안을 위해 적절한 복호화 방식 사용
+    if (!userProfile || !userProfile.id) {
+        console.error('User not logged in');
+        return null;
+    }
+    
+    try {
+        const decoded = atob(encryptedKey);
+        const salt = userProfile.id;
+        const [apiKey, keySalt] = decoded.split(':');
+        
+        // 솔트가 일치하는지 확인
+        if (keySalt !== salt) {
+            console.error('Invalid API key: user mismatch');
+            return null;
+        }
+        
+        return apiKey;
+    } catch (error) {
+        console.error('Error decrypting API key:', error);
+        return null;
+    }
+}
+
+// Save API key
+function saveApiKey() {
+    const apiKey = apiKeyInput.value.trim();
+    
+    if (!apiKey) {
+        alert('Please enter a valid API key');
+        return;
+    }
+    
+    // API 키 유효성 검사 (간단한 형식 체크)
+    if (!apiKey.startsWith('sk-')) {
+        alert('Please enter a valid OpenAI API key (starts with sk-)');
+        return;
+    }
+    
+    // API 키 암호화 및 저장
+    const encryptedKey = encryptApiKey(apiKey);
+    if (encryptedKey) {
+        localStorage.setItem(`apikey_${userProfile.id}`, encryptedKey);
+        apiKeyInput.value = '';
+        closeApiKeyModal();
+    } else {
+        alert('Failed to securely store API key');
+    }
+}
+
+// Get encrypted API key
+function getEncryptedApiKey() {
+    if (!userProfile || !userProfile.id) {
+        return null;
+    }
+    
+    return localStorage.getItem(`apikey_${userProfile.id}`);
+}
+
+// Get decrypted API key
+function getDecryptedApiKey() {
+    const encryptedKey = getEncryptedApiKey();
+    if (!encryptedKey) {
+        return null;
+    }
+    
+    return decryptApiKey(encryptedKey);
+}
+
 // Handle search form submission
 function handleSearch(event) {
     event.preventDefault();
+    console.log('Search submitted');
+    // 로그인 확인
+    if (!isLoggedIn) {
+        showLoginModal();
+        return;
+    }
+    
+    // API 키 확인
+    if (!getEncryptedApiKey()) {
+        showApiKeyModal();
+        return;
+    }
     
     const url = videoUrlInput.value.trim();
     if (!url || !isValidYouTubeUrl(url)) {
@@ -279,22 +646,32 @@ function hideLoading() {
     loadingElement.classList.add('hidden');
 }
 
-// Fetch summary from backend API
+// Fetch summary from backend API with API key
 function fetchSummary(url) {
     // API endpoint
     const apiUrl = '/api/summary';
+    
+    // 암호화된 API 키 가져오기
+    const apiKey = getDecryptedApiKey();
+    if (!apiKey) {
+        hideLoading();
+        displayError(new Error('API key not found. Please set your OpenAI API key.'));
+        return;
+    }
     
     // Request data
     const data = {
         url: url
     };
     
-    // Fetch options
+    // Fetch options with credentials and proper authentication
     const options = {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
         },
+        credentials: 'include', // 중요: 세션 쿠키 포함
         body: JSON.stringify(data)
     };
     
@@ -302,6 +679,13 @@ function fetchSummary(url) {
     fetch(apiUrl, options)
         .then(response => {
             if (!response.ok) {
+                // 401 오류인 경우 인증 필요
+                if (response.status === 401) {
+                    // 세션이 만료된 경우 로그인 다시 요청
+                    isLoggedIn = false;
+                    showLoginModal();
+                    throw new Error('Authentication required. Please log in again.');
+                }
                 throw new Error('Network response was not ok');
             }
             return response.json();
@@ -391,10 +775,6 @@ function formatSummaryText(summary) {
 
 // Add clickable timestamps to summary text
 function addClickableTimestamps(summary, timestamps) {
-    // if (!timestamps || timestamps.length === 0) {
-    //     return summary;
-    // }
-    
     let result = summary;
     
     // Regular expression to match timestamp patterns like [MM:SS] or [HH:MM:SS]
@@ -469,6 +849,28 @@ function displayError(error) {
     `;
 }
 
+// 드롭다운 메뉴 토글을 처리하는 함수
+function handleDropdownToggle(event) {
+    // 사용자 아바타 또는 사용자 정보 관련 요소 확인
+    const avatar = document.getElementById('user-avatar');
+    const userDropdownMenu = document.getElementById('user-dropdown');
+    
+    // 아바타를 클릭한 경우 드롭다운 메뉴 토글
+    if (isLoggedIn && avatar && 
+       (event.target === avatar || avatar.contains(event.target))) {
+        // 드롭다운 메뉴 표시/숨김 토글
+        userDropdownMenu.classList.toggle('show');
+        event.stopPropagation(); // 이벤트 버블링 방지
+        return;
+    }
+    
+    // 드롭다운 메뉴가 열려있고, 드롭다운 외부를 클릭한 경우 닫기
+    if (userDropdownMenu && userDropdownMenu.classList.contains('show') && 
+        !userDropdownMenu.contains(event.target)) {
+        userDropdownMenu.classList.remove('show');
+    }
+}
+
 // YouTube IFrame API ready callback
 function onYouTubeIframeAPIReady() {
     console.log('YouTube IFrame API is ready');
@@ -487,13 +889,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const urlInput = document.getElementById("video-url");
     const dropdown = document.getElementById("dropdown");
 
-    // Fetch recent video titles from the backend
+    // Fetch recent video titles from the backend with authentication
     async function fetchRecentTitles() {
+        // 로그인 상태가 아닌 경우 최근 타이틀 가져오지 않음
+        if (!isLoggedIn) {
+            return;
+        }
+        
         try {
-            const response = await fetch("/api/recent-summaries");
+            const response = await fetch("/api/recent-summaries", {
+                credentials: 'include' // 중요: 세션 쿠키 포함
+            });
+            
             if (!response.ok) {
+                // 401 오류인 경우 세션 만료로 처리
+                if (response.status === 401) {
+                    isLoggedIn = false;
+                    updateUIForLoggedOutUser();
+                    return;
+                }
                 throw new Error("Failed to fetch recent summaries");
             }
+            
             const summaries = await response.json();
             populateDropdown(summaries);
         } catch (error) {

@@ -11,10 +11,42 @@
 </head>
 <body>
     <div class="container">
-        <div class="search-container">
+        <header class="app-header">
             <div class="logo">
                 <h1>YouTube Summarizer</h1>
             </div>
+            <div class="user-controls">
+                <button id="login-button" class="login-button">
+                    <span class="material-symbols-outlined">account_circle</span>
+                    <span>Login</span>
+                </button>
+                <div class="user-avatar-container" id="user-profile">
+                    <img id="user-avatar" src="" alt="User avatar">
+                    <span id="user-name">User Name</span>
+                </div>
+                <div id="user-dropdown" class="user-dropdown hidden">
+                    <div class="user-info">
+                        <img id="user-avatar-dropdown" src="" alt="User avatar">
+                        <div class="user-info-text">
+                            <span id="user-name-dropdown"></span>
+                            <span class="user-email"></span>
+                        </div>
+                    </div>
+                    <div class="dropdown-menu">
+                        <button id="settings-btn" class="dropdown-item">
+                            <span class="material-symbols-outlined">settings</span>
+                            <span>Settings</span>
+                        </button>
+                        <button id="logout-btn" class="dropdown-item">
+                            <span class="material-symbols-outlined">logout</span>
+                            <span>Logout</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+        
+        <div class="search-container">
             <div class="search-box">
                 <form id="search-form">
                     <div class="input-wrapper">
@@ -44,8 +76,59 @@
             </div>
         </div>
     </div>
+    
+    <!-- Google Login Modal -->
+    <div id="login-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Login Required</h3>
+                <button id="close-login-modal" class="close-modal">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Please login to use YouTube Summarizer</p>
+                <div class="login-buttons">
+                    <button id="google-login-btn" class="google-login-btn">
+                        <img src="img/google-logo.svg" alt="Google logo" class="google-logo">
+                        <span>Sign in with Google</span>
+                    </button>
+                    <div class="other-login-placeholder">
+                        <p>More login options coming soon</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- OpenAI API Key Modal -->
+    <div id="api-key-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>OpenAI API Key Required</h3>
+                <button id="close-api-key-modal" class="close-modal">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="api-notice">Your API key is stored only in your browser and never sent to our servers.</p>
+                <div class="api-key-input-container">
+                    <label for="api-key-input">Enter your OpenAI API Key:</label>
+                    <input type="password" id="api-key-input" placeholder="sk-..." required>
+                    <p class="api-key-help">Get your API key from <a href="https://platform.openai.com/account/api-keys" target="_blank">OpenAI dashboard</a></p>
+                </div>
+                <div class="api-key-actions">
+                    <button id="save-api-key-btn" class="primary-btn">Save API Key</button>
+                    <button id="cancel-api-key-btn" class="secondary-btn">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <script src="js/app.js"></script>
     <!-- YouTube IFrame API -->
     <script src="https://www.youtube.com/iframe_api"></script>
+    <!-- Google Identity Services Library -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </body>
 </html>

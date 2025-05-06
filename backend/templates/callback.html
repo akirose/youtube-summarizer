@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>로그인 성공</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+        }
+        .success-message {
+            background-color: #e8f5e9;
+            padding: 20px;
+            border-radius: 8px;
+            display: inline-block;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .user-info {
+            margin-top: 20px;
+            text-align: left;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="success-message">
+        <h1>로그인 성공!</h1>
+        <p>이 페이지는 잠시 후 자동으로 닫힙니다.</p>
+    </div>
+
+    <script>
+    // 부모 창으로 사용자 정보 전달
+    window.onload = function() {
+        // 사용자 정보 JSON 추출
+        const userInfo = {
+            id: "{{.userInfo.ID}}",
+            email: "{{.userInfo.Email}}",
+            name: "{{.userInfo.Name}}",
+            picture: "{{.userInfo.Picture}}"
+        };
+        
+        // 세션 토큰 정보 (이제 서버에서 세션 ID를 반환함)
+        const token = "{{.token}}";
+        
+        // 부모 창이 있는 경우 메시지 전달
+        if (window.opener) {
+            window.opener.postMessage({
+                type: 'GOOGLE_LOGIN_SUCCESS',
+                userInfo: userInfo,
+                token: token
+            }, '*');
+            
+            // 잠시 후 창 닫기
+            setTimeout(function() {
+                window.close();
+            }, 2000);
+        } else {
+            // 부모 창이 없는 경우 메인 페이지로 리다이렉션
+            // 세션은 이미 백엔드에 저장되어 있으므로 쿠키로 자동 처리됨
+            window.location.href = '/';
+        }
+    };
+    </script>
+</body>
+</html>
