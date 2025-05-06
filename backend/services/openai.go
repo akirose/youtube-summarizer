@@ -113,13 +113,34 @@ type GPTResponse struct {
 	} `json:"usage"`
 }
 
-// SummarizeTranscript generates a summary of a transcript using OpenAI's GPT-4o-mini
-func SummarizeTranscript(transcript string) (string, []TimestampInfo, error) {
-	// Get OpenAI API key
-	apiKey := os.Getenv("OPENAI_API_KEY")
+// SummarizeTranscript generates a summary of a transcript using OpenAI's API
+// userAPIKey: 사용자가 제공한 API 키 (없는 경우 빈 문자열)
+// userID: 사용자 ID (서버 API 키 사용 권한 확인용)
+func SummarizeTranscript(transcript string, userAPIKey string, userID string) (string, []TimestampInfo, error) {
+	// API 키 결정 (사용자 키 우선, 없으면 서버 키 정책에 따라 결정)
+	apiKey := ""
+
+	// 사용자 API 키가 제공된 경우 우선 사용
+	if userAPIKey != "" {
+		apiKey = userAPIKey
+	} else {
+		// 사용자 API 키가 없는 경우, 서버 키 사용 가능한지 확인
+		policy := GetAPIKeyPolicy()
+		if policy.CanUseServerKey(userID) {
+			apiKey = os.Getenv("OPENAI_API_KEY")
+		}
+	}
+
+	// API 키가 없으면 에러 반환
+	if apiKey == "" {
+		return "", nil, errors.New("no valid OpenAI API key available")
+	}
+
+	// 환경 변수 설정 가져오기
 	apiUrl := os.Getenv("OPENAI_API_URL")
 	apiModel := os.Getenv("OPENAI_API_MODEL")
 	apiMaxTokensStr := os.Getenv("OPENAI_API_MAX_TOKENS")
+
 	apiMaxTokens := MaxTokens // 기본값 설정
 	if apiMaxTokensStr != "" {
 		var err error
@@ -129,9 +150,7 @@ func SummarizeTranscript(transcript string) (string, []TimestampInfo, error) {
 			apiMaxTokens = MaxTokens
 		}
 	}
-	if apiKey == "" && apiUrl == "" {
-		return "", nil, errors.New("OpenAI API key not set")
-	}
+
 	if apiUrl == "" {
 		apiUrl = OpenAIAPIURL
 	}
@@ -173,9 +192,7 @@ func SummarizeTranscript(transcript string) (string, []TimestampInfo, error) {
 
 	// Set headers
 	req.Header.Set("Content-Type", "application/json")
-	if apiKey != "" {
-		req.Header.Set("Authorization", "Bearer "+apiKey)
-	}
+	req.Header.Set("Authorization", "Bearer "+apiKey)
 
 	// Send request
 	client := &http.Client{}
@@ -215,6 +232,26 @@ func SummarizeTranscript(transcript string) (string, []TimestampInfo, error) {
 	timestamps := extractTimestamps(summary)
 
 	return summary, timestamps, nil
+}
+
+// SummarizeChunks processes each transcript chunk, summarizes it, and combines the summaries into a final summary
+// userAPIKey: 사용자가 제공한 API 키 (없는 경우 빈 문자열)
+// userID: 사용자 ID (서버 API 키 사용 권한 확인용)
+func SummarizeChunks(chunks [][]TranscriptItem, userAPIKey string, userID string) (string, error) {
+	var finalSummary strings.Builder
+
+	for i, chunk := range chunks {
+		// Summarize the chunk
+		summary, _, err := SummarizeTranscript(GetFormattedTranscript(chunk), userAPIKey, userID)
+		if err != nil {
+			return "", fmt.Errorf("failed to summarize chunk %d: %v", i+1, err)
+		}
+
+		// Append the chunk summary to the final summary
+		finalSummary.WriteString(summary + "\n\n")
+	}
+
+	return finalSummary.String(), nil
 }
 
 // extractTimestamps parses the summary text for timestamp markers and extracts them
@@ -266,24 +303,6 @@ func extractTimestamps(summary string) []TimestampInfo {
 	}
 
 	return timestamps
-}
-
-// SummarizeChunks processes each transcript chunk, summarizes it, and combines the summaries into a final summary
-func SummarizeChunks(chunks [][]TranscriptItem) (string, error) {
-	var finalSummary strings.Builder
-
-	for i, chunk := range chunks {
-		// Summarize the chunk
-		summary, _, err := SummarizeTranscript(GetFormattedTranscript(chunk))
-		if err != nil {
-			return "", fmt.Errorf("failed to summarize chunk %d: %v", i+1, err)
-		}
-
-		// Append the chunk summary to the final summary
-		finalSummary.WriteString(summary + "\n\n")
-	}
-
-	return finalSummary.String(), nil
 }
 
 // GetFormattedTranscript formats the transcript items into a single string

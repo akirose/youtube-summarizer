@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/akirose/youtube-summarizer/auth"
 	"github.com/akirose/youtube-summarizer/models"
@@ -62,6 +63,21 @@ func InitSummaryModule() error {
 	return nil
 }
 
+// 사용자의 API 키를 Authorization 헤더에서 추출합니다
+func extractAPIKeyFromHeader(c *gin.Context) string {
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		return ""
+	}
+
+	// "Bearer " 접두사 확인 및 제거
+	if !strings.HasPrefix(authHeader, "Bearer ") {
+		return ""
+	}
+
+	return strings.TrimPrefix(authHeader, "Bearer ")
+}
+
 // HandleSummaryRequest processes a request to summarize a YouTube video
 func HandleSummaryRequest(c *gin.Context) {
 	var request SummaryRequest
@@ -85,6 +101,21 @@ func HandleSummaryRequest(c *gin.Context) {
 
 	// 안전하게 사용자 ID 추출
 	userID := userInfo.ID
+
+	// Authorization 헤더에서 사용자 API 키 추출
+	userAPIKey := extractAPIKeyFromHeader(c)
+
+	// API 키 사용 가능 여부 확인
+	if userAPIKey == "" {
+		// 사용자가 API 키를 제공하지 않은 경우 서버 키 사용 가능한지 확인
+		policy := services.GetAPIKeyPolicy()
+		if !policy.CanUseServerKey(userID) {
+			c.JSON(http.StatusForbidden, gin.H{
+				"error": "API 키가 필요합니다. 설정에서 OpenAI API 키를 설정해주세요.",
+			})
+			return
+		}
+	}
 
 	// Extract video ID from URL
 	videoID, err := services.GetVideoID(request.URL)
@@ -135,7 +166,7 @@ func HandleSummaryRequest(c *gin.Context) {
 	}
 
 	// Summarize chunks and combine into final summary
-	summary, err := services.SummarizeChunks(chunks)
+	summary, err := services.SummarizeChunks(chunks, userAPIKey, userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to summarize transcript chunks: " + err.Error(),

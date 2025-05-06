@@ -6,6 +6,7 @@ import (
 
 	"github.com/akirose/youtube-summarizer/api"
 	"github.com/akirose/youtube-summarizer/auth"
+	"github.com/akirose/youtube-summarizer/services"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
@@ -24,6 +25,9 @@ func main() {
 
 	// Initialize auth
 	auth.InitAuth()
+
+	// API 키 정책 초기화
+	services.InitAPIKeyPolicy()
 
 	// Set default port if not specified
 	port := os.Getenv("PORT")
@@ -71,6 +75,7 @@ func main() {
 	userGroup.Use(auth.IsAuthenticated())
 	{
 		userGroup.GET("/info", getUserInfo)
+		userGroup.GET("/api-key-status", getApiKeyStatus) // API 키 상태 확인 엔드포인트 추가
 	}
 
 	// API routes
@@ -104,5 +109,23 @@ func getUserInfo(c *gin.Context) {
 	c.JSON(200, gin.H{
 		"user":          userInfo,
 		"authenticated": true,
+	})
+}
+
+// API 키 상태를 반환하는 핸들러
+func getApiKeyStatus(c *gin.Context) {
+	userInfo, authenticated := auth.GetSessionUser(c)
+	if !authenticated {
+		c.JSON(401, gin.H{"error": "Not authenticated"})
+		return
+	}
+
+	// API 키 정책 가져오기
+	policy := services.GetAPIKeyPolicy()
+	canUseServerKey := policy.CanUseServerKey(userInfo.ID)
+
+	c.JSON(200, gin.H{
+		"needsApiKey":     !canUseServerKey, // 서버 키 사용 불가능한 경우 사용자 API 키 필요
+		"serverKeyPolicy": policy.GetApiKeyPolicy(),
 	})
 }

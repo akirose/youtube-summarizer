@@ -7,6 +7,8 @@ let timeUpdateInterval; // Player 상태를 추적하는 변수 추가
 let isLoggedIn = false; // 로그인 상태 추적
 let userProfile = null; // 사용자 프로필 정보 저장
 let googleAuth = null; // Google 인증 객체
+let needsApiKey = true; // API 키가 필요한지 여부 (기본값은 필요함)
+let serverKeyPolicy = null; // 서버 API 키 정책
 
 // DOM elements
 const searchForm = document.getElementById('search-form');
@@ -106,6 +108,12 @@ function handleVideoUrlInputClick(event) {
         return;
     }
     
+    // API 키가 필요하지 않은 경우 (서버 정책에 따라)
+    if (!needsApiKey) {
+        // API 키가 필요하지 않으면 바로 진행
+        return;
+    }
+    
     // API 키 유효성 확인 (암호화된 키의 존재 및 복호화 테스트)
     const encryptedKey = getEncryptedApiKey();
     if (!encryptedKey) {
@@ -157,11 +165,9 @@ async function checkLoginStatus() {
             // 로컬 스토리지에 사용자 정보 저장 (선택적)
             localStorage.setItem('user', JSON.stringify(userProfile));
             
-            // API 키 설정 여부 확인
-            if (!getEncryptedApiKey()) {
-                console.log('No API key set for user, will prompt when needed');
-            }
-
+            // 로그인 성공 후 API 키 상태 확인
+            await checkApiKeyStatus();
+            
             console.log('User is authenticated:', userProfile);
         } else {
             handleNotAuthenticated();
@@ -169,6 +175,60 @@ async function checkLoginStatus() {
     } catch (error) {
         console.error('Authentication check failed:', error);
         handleNotAuthenticated();
+    }
+}
+
+// API 키 상태 확인 함수 (사용자별 API 키 필요 여부)
+async function checkApiKeyStatus() {
+    if (!isLoggedIn) {
+        needsApiKey = true; // 기본적으로 API 키 필요
+        return;
+    }
+    
+    try {
+        const response = await fetch('/user/api-key-status', {
+            method: 'GET',
+            credentials: 'include' // 세션 쿠키 포함
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch API key status');
+        }
+        
+        const data = await response.json();
+        needsApiKey = data.needsApiKey;
+        serverKeyPolicy = data.serverKeyPolicy;
+        
+        console.log('API key status checked. Needs API key:', needsApiKey);
+        console.log('Server key policy:', serverKeyPolicy);
+        
+        // API 키가 필요하지 않은 경우 로컬 스토리지에서 기존에 저장된 API 키 정보 확인
+        if (!needsApiKey) {
+            // 이미 저장된 키가 있는지 확인
+            const hasStoredKey = getEncryptedApiKey() !== null;
+            console.log('User has stored API key:', hasStoredKey);
+            
+            // 저장된 키가 없거나 서버 정책이 변경되었는지 확인
+            updateApiKeyModalContent(needsApiKey);
+        }
+    } catch (error) {
+        console.error('Error checking API key status:', error);
+        needsApiKey = true; // 오류 발생 시 보수적으로 API 키 필요로 설정
+    }
+}
+
+// API 키 모달 내용 업데이트 함수
+function updateApiKeyModalContent(needsApiKey) {
+    // API 키 모달 텍스트 요소 찾기
+    const apiKeyModalTitle = document.querySelector('#api-key-modal .modal-header h3');
+    const apiKeyModalText = document.querySelector('#api-key-modal .modal-body p.api-notice');
+    
+    if (needsApiKey) {
+        apiKeyModalTitle.textContent = 'OpenAI API Key Required';
+        apiKeyModalText.textContent = 'Your API key is stored only in your browser and never sent to our servers.';
+    } else {
+        apiKeyModalTitle.textContent = 'OpenAI API Key (Optional)';
+        apiKeyModalText.innerHTML = 'The server already has an API key you can use, but you can provide your own key if you prefer.<br>Your API key is stored only in your browser and never sent to our servers.';
     }
 }
 
@@ -261,8 +321,9 @@ function closeLoginModal() {
     }, 300);
 }
 
-// Show API key modal
+// Show API key modal with updated content
 function showApiKeyModal() {
+    updateApiKeyModalContent(needsApiKey);
     apiKeyModal.classList.remove('hidden');
     apiKeyModal.classList.add('show');
 }
@@ -572,8 +633,8 @@ function handleSearch(event) {
         return;
     }
     
-    // API 키 확인
-    if (!getEncryptedApiKey()) {
+    // API 키 확인 (서버 정책에 따라 필요한 경우에만)
+    if (needsApiKey && !getEncryptedApiKey()) {
         showApiKeyModal();
         return;
     }
@@ -803,26 +864,26 @@ function fetchSummary(url) {
     // API endpoint
     const apiUrl = '/api/summary';
     
-    // 암호화된 API 키 가져오기
-    const apiKey = getDecryptedApiKey();
-    if (!apiKey) {
-        hideLoading();
-        displayError(new Error('API key not found. Please set your OpenAI API key.'));
-        return;
-    }
-    
     // Request data
     const data = {
         url: url
     };
     
+    // 기본 헤더 설정
+    const headers = {
+        'Content-Type': 'application/json'
+    };
+    
+    // API 키가 필요하고 저장되어 있으면 Authorization 헤더에 추가
+    const apiKey = getDecryptedApiKey();
+    if (apiKey) {
+        headers['Authorization'] = `Bearer ${apiKey}`;
+    }
+    
     // Fetch options with credentials and proper authentication
     const options = {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-        },
+        headers: headers,
         credentials: 'include', // 중요: 세션 쿠키 포함
         body: JSON.stringify(data)
     };
@@ -837,6 +898,11 @@ function fetchSummary(url) {
                     isLoggedIn = false;
                     showLoginModal();
                     throw new Error('Authentication required. Please log in again.');
+                }
+                // 403 오류인 경우 API 키 필요
+                if (response.status === 403) {
+                    showApiKeyModal();
+                    throw new Error('API key required. Please set your OpenAI API key.');
                 }
                 throw new Error('Network response was not ok');
             }
