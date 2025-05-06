@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/akirose/youtube-summarizer/auth"
 	"github.com/akirose/youtube-summarizer/models"
 	"github.com/akirose/youtube-summarizer/services"
 	"github.com/gin-gonic/gin"
@@ -46,6 +47,21 @@ func InitCache() error {
 	return err
 }
 
+// InitSummaryModule은 요약 기능과 관련된 모든 초기화 작업을 수행합니다.
+func InitSummaryModule() error {
+	// 캐시 초기화
+	if err := InitCache(); err != nil {
+		return err
+	}
+
+	// 사용자 요약 디렉토리 초기화
+	if err := models.InitUserSummaryDirectory(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // HandleSummaryRequest processes a request to summarize a YouTube video
 func HandleSummaryRequest(c *gin.Context) {
 	var request SummaryRequest
@@ -57,6 +73,18 @@ func HandleSummaryRequest(c *gin.Context) {
 		})
 		return
 	}
+
+	// auth 패키지의 GetSessionUser를 사용하여 사용자 정보 조회
+	userInfo, authenticated := auth.GetSessionUser(c)
+	if !authenticated || userInfo == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "인증된 사용자 정보를 찾을 수 없습니다.",
+		})
+		return
+	}
+
+	// 안전하게 사용자 ID 추출
+	userID := userInfo.ID
 
 	// Extract video ID from URL
 	videoID, err := services.GetVideoID(request.URL)
@@ -70,6 +98,12 @@ func HandleSummaryRequest(c *gin.Context) {
 	// Check cache first
 	if summaryCache != nil {
 		if cachedItem, found := summaryCache.Get(videoID); found {
+			// 캐시에서 발견되었지만, 사용자 요약 기록은 추가해야 합니다.
+			if err := models.AddUserSummary(userID, videoID, cachedItem.Title); err != nil {
+				// 오류 기록하지만 요청은 계속 진행
+				// TODO: 제대로 된 로깅 구현
+			}
+
 			// Return cached response
 			c.JSON(http.StatusOK, SummaryResponse{
 				VideoID:    videoID,
@@ -109,9 +143,9 @@ func HandleSummaryRequest(c *gin.Context) {
 		return
 	}
 
-	// Cache the result
+	// 전역 캐시와 사용자 요약에 결과 저장
 	if summaryCache != nil {
-		if err := summaryCache.Set(videoID, videoInfo.Title, summary, nil); err != nil {
+		if err := summaryCache.AddUserSummaryToCache(userID, videoID, videoInfo.Title, summary, nil); err != nil {
 			// Log the error but don't fail the request
 			// TODO: Implement proper logging
 		}
@@ -135,5 +169,32 @@ func GetRecentSummariesHandler(c *gin.Context) {
 	summaries := models.GetRecentVideoSummaries()
 
 	// Respond with the summaries in JSON format
+	c.JSON(http.StatusOK, summaries)
+}
+
+// GetUserRecentSummariesHandler는 사용자의 최근 15개 요약을 가져오는 API 핸들러입니다.
+func GetUserRecentSummariesHandler(c *gin.Context) {
+	// auth 패키지의 GetSessionUser를 사용하여 사용자 정보 조회
+	userInfo, authenticated := auth.GetSessionUser(c)
+	if !authenticated || userInfo == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "인증된 사용자 정보를 찾을 수 없습니다.",
+		})
+		return
+	}
+
+	// 안전하게 사용자 ID 추출
+	userID := userInfo.ID
+
+	// 사용자의 최근 요약을 가져옵니다.
+	summaries, err := models.GetRecentUserSummaries(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "사용자 요약을 가져오는데 실패했습니다: " + err.Error(),
+		})
+		return
+	}
+
+	// 응답 반환
 	c.JSON(http.StatusOK, summaries)
 }

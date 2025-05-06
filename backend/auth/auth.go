@@ -224,7 +224,7 @@ func RefreshSession(c *gin.Context) bool {
 // IsAuthenticated는 사용자가 인증되었는지 확인합니다
 func IsAuthenticated() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		_, authenticated := GetSessionUser(c)
+		userInfo, authenticated := GetSessionUser(c)
 		if !authenticated {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 			c.Abort()
@@ -233,6 +233,16 @@ func IsAuthenticated() gin.HandlerFunc {
 
 		// 세션 갱신 (필요한 경우)
 		RefreshSession(c)
+
+		// 사용자 정보를 컨텍스트에 추가
+		sessionData := map[string]interface{}{
+			"userId":  userInfo.ID,
+			"email":   userInfo.Email,
+			"name":    userInfo.Name,
+			"picture": userInfo.Picture,
+		}
+		c.Set("session", sessionData)
+
 		c.Next()
 	}
 }

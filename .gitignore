@@ -6,6 +6,7 @@
 project.md
 **/.env
 backend/cache/
+backend/users/
 backend/__debug*
 presentation/
 **/*.tar.gz
@@ -42,4 +43,3 @@ node_modules/
 tasks.json
 tasks/ 
 prd.txt
-backend/main.go

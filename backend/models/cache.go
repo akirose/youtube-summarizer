@@ -241,3 +241,20 @@ func (c *SummaryCache) loadFromDisk() error {
 
 	return nil
 }
+
+// AddUserSummaryToCache는 캐시에 비디오 요약을 추가하고 동시에 사용자의 요약 목록에도 추가합니다.
+func (c *SummaryCache) AddUserSummaryToCache(userID, videoID, title, summary string, timestamps []Timestamp) error {
+	// 먼저 글로벌 캐시에 추가
+	err := c.Set(videoID, title, summary, timestamps)
+	if err != nil {
+		return fmt.Errorf("글로벌 캐시에 추가 실패: %w", err)
+	}
+
+	// 사용자의 요약 목록에 추가
+	err = AddUserSummary(userID, videoID, title)
+	if err != nil {
+		return fmt.Errorf("사용자 요약 목록에 추가 실패: %w", err)
+	}
+
+	return nil
+}

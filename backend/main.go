@@ -17,9 +17,9 @@ func main() {
 		log.Println("Warning: .env file not found")
 	}
 
-	// Initialize cache
-	if err := api.InitCache(); err != nil {
-		log.Printf("Warning: Failed to initialize cache: %v\n", err)
+	// 요약 모듈 초기화 (캐시 및 사용자 요약 디렉토리 초기화)
+	if err := api.InitSummaryModule(); err != nil {
+		log.Printf("Warning: Failed to initialize summary module: %v\n", err)
 	}
 
 	// Initialize auth
@@ -79,8 +79,11 @@ func main() {
 		// 요약 요청은 인증이 필요
 		apiGroup.POST("/summary", auth.IsAuthenticated(), api.HandleSummaryRequest)
 
-		// 최근 요약 목록도 인증이 필요
+		// 전체 최근 요약 목록 (이전 버전과의 호환성)
 		apiGroup.GET("/recent-summaries", auth.IsAuthenticated(), api.GetRecentSummariesHandler)
+
+		// 사용자별 최근 요약 목록 (새 API 엔드포인트)
+		apiGroup.GET("/user-recent-summaries", auth.IsAuthenticated(), api.GetUserRecentSummariesHandler)
 	}
 
 	// Start server

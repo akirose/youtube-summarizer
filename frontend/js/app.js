@@ -985,7 +985,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         try {
-            const response = await fetch("/api/recent-summaries", {
+            // 사용자별 최근 요약 목록을 가져오는 새 API 엔드포인트 사용
+            const response = await fetch("/api/user-recent-summaries", {
                 credentials: 'include' // 중요: 세션 쿠키 포함
             });
             
