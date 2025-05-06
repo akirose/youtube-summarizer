@@ -341,7 +341,71 @@ function handleLogout() {
         
         // UI 업데이트
         updateUIForLoggedOutUser();
+        
+        // 요약 화면 닫기 및 첫 화면으로 돌아가기
+        resetToInitialState();
+        
+        // URL에서 비디오 파라미터 제거하고 홈페이지로 이동
+        const newUrl = new URL(window.location.origin);
+        window.history.pushState({}, '', newUrl);
     });
+}
+
+// 초기 상태로 UI 재설정
+function resetToInitialState() {
+    // 검색 결과 컨테이너 숨기기
+    if (resultsContainer) {
+        resultsContainer.classList.add('hidden');
+    }
+    
+    // 검색창을 컴팩트 모드에서 원래 크기로 복원
+    if (searchContainer && searchContainer.classList.contains('compact')) {
+        searchContainer.classList.remove('compact');
+    }
+    
+    // 비디오 플레이어 정리
+    if (player) {
+        try {
+            // 타임스탬프 업데이트 인터벌 정리
+            if (timeUpdateInterval) {
+                clearInterval(timeUpdateInterval);
+                timeUpdateInterval = null;
+            }
+            
+            // 플레이어 중지 및 관련 변수 초기화
+            player.stopVideo();
+            currentVideoId = null;
+        } catch (error) {
+            console.error('Error cleaning up player:', error);
+        }
+    }
+    
+    // 입력 필드 초기화
+    if (videoUrlInput) {
+        videoUrlInput.value = '';
+        if (clearBtn) {
+            clearBtn.style.display = 'none';
+        }
+    }
+    
+    // 드롭다운 숨기기
+    const dropdown = document.getElementById('dropdown');
+    if (dropdown) {
+        dropdown.style.display = 'none';
+    }
+    
+    // 비디오 제목 및 요약 내용 초기화
+    if (videoTitle) {
+        videoTitle.textContent = '';
+    }
+    if (summaryElement) {
+        summaryElement.innerHTML = '';
+    }
+    
+    // 로딩 표시 숨기기
+    if (loadingElement) {
+        loadingElement.classList.add('hidden');
+    }
 }
 
 // Encrypt API key - 보안 강화 버전
