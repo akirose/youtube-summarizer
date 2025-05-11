@@ -12,9 +12,6 @@
 <body>
     <div class="container">
         <header class="app-header">
-            <div class="logo">
-                <h1>YouTube Summarizer</h1>
-            </div>
             <div class="user-controls">
                 <button id="login-button" class="login-button">
                     <span class="material-symbols-outlined">account_circle</span>
@@ -46,21 +43,27 @@
             </div>
         </header>
         
-        <div class="search-container">
-            <div class="search-box">
-                <form id="search-form">
-                    <div class="input-wrapper">
-                        <span class="material-symbols-outlined">link</span>
-                        <input type="text" id="video-url" placeholder="Paste YouTube URL here" autocomplete="off" required>
-                        <button type="button" id="clear-btn" class="clear-btn">
-                            <span class="material-symbols-outlined">close</span>
-                        </button>
-                    </div>
-                    <button type="submit" id="search-btn" class="search-btn">Summarize</button>
-                </form>
+        <div class="main-content">
+            <div class="logo">
+                <h1>YouTube Summarizer</h1>
+            </div>
+            
+            <div class="search-container">
+                <div class="search-box">
+                    <form id="search-form">
+                        <div class="input-wrapper">
+                            <span class="material-symbols-outlined">link</span>
+                            <input type="text" id="video-url" placeholder="Paste YouTube URL here" autocomplete="off" required>
+                            <button type="button" id="clear-btn" class="clear-btn">
+                                <span class="material-symbols-outlined">close</span>
+                            </button>
+                        </div>
+                        <button type="submit" id="search-btn" class="search-btn">Summarize</button>
+                    </form>
+                </div>
+                <div id="dropdown" class="dropdown"></div>
             </div>
         </div>
-        <div id="dropdown"></div>
 
         <div id="results-container" class="results-container hidden">
             <div class="video-container">

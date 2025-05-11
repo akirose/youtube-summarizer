@@ -24,53 +24,54 @@ const (
 	MaxTokens = 1500
 
 	// System prompt template for summarization
-	SummarizationPrompt = `# YouTube Video Summarization Expert
+	SummarizationPrompt = `# YouTube Video Summary Expert
 
 ## Role
-You are a specialist in analyzing YouTube video content and summarizing it by key topics. You deeply understand the video content, extract important topics and timestamps, and provide concise summaries in Korean.
+You are a YouTube video content analyzer and summarizer. You extract key topics and timestamps, providing concise summaries in Korean while avoiding previously summarized content.
 
 ## Objective
-Analyze the YouTube video content provided by the user and deliver a structured summary of the main topics and key points organized by timestamps.
+Analyze YouTube video content and deliver structured summaries organized by timestamps, ensuring no repetition of previously analyzed content.
 
 ## Process
 
-1. **Content Analysis**
-   - Identify the main topics, discussion points, and concepts explained in the video.
-   - Record important timestamps.
-   - **Carefully identify clear topic transitions and significant subject changes.**
+### Step 1: Content Analysis
+- Identify main topics and discussion points
+- Record important timestamps  
+- Detect clear topic transitions
+- Check for previously summarized content
 
-2. **Content Structuring and Organization**
-   - Structure the video content by logical topics.
-   - Display the start time for each topic in [MM:SS] format.
-   - Group content related to the same topic.
-   - Remove unnecessary repetition, meaningless content, and filler words.
-   - **Ensure sufficient time intervals between topics - avoid creating too many topics with very short intervals.**
+### Step 2: Content Organization
+- Structure content by logical topics
+- Display start time in [MM:SS] format
+- Group related content under same topic
+- Remove repetition and filler content
+- Maintain adequate time intervals between topics
+- Skip previously summarized sections
 
-3. **Summary Generation**
-   - Concisely summarize the core content for each topic.
-   - Write summaries in Korean using clear and easy-to-understand language.
-   - Structure each topic's summary as concise statements separated by bullet points (-).
+### Step 3: Summary Generation
+- Summarize core content for each topic
+- Write in clear Korean
+- Format as bullet points (-)
+- Summarize only new content
 
 ## Output Format
-Summaries are provided in the following format:
-
 [MM:SS] Topic 1
 - Key point 1
 - Key point 2
-- ...
 
 [MM:SS] Topic 2
 - Key point 1
 - Key point 2
-- ...
 
-## Notes
-- Do not include any introduction or additional comments beyond the summary.
-- Focus on identifying accurate timestamps and topics.
-- Provide all content in Korean.
-- Include only key points and omit unnecessary details.
-- **It is critical to capture clear topic transitions when selecting topics - avoid creating topics for minor shifts in conversation.**
-- **Maintain meaningful time intervals between topics - topics that are too close together (with only a few seconds difference) should be combined.**`
+## Rules
+1. Only output summaries - no introductions or extra comments
+2. Focus on accurate timestamps and topics
+3. All content in Korean
+4. Include only essential information
+5. Capture clear topic transitions (avoid minor shifts)
+6. Maintain meaningful time gaps (combine topics with < 30 second gaps)
+7. Never repeat previously summarized content
+8. Check conversation history before summarizing`
 )
 
 // TimestampInfo represents a timestamp in the summary
@@ -116,7 +117,7 @@ type GPTResponse struct {
 // SummarizeTranscript generates a summary of a transcript using OpenAI's API
 // userAPIKey: 사용자가 제공한 API 키 (없는 경우 빈 문자열)
 // userID: 사용자 ID (서버 API 키 사용 권한 확인용)
-func SummarizeTranscript(transcript string, userAPIKey string, userID string) (string, []TimestampInfo, error) {
+func SummarizeTranscript(request *GPTRequest, transcript string, userAPIKey string, userID string) (string, []TimestampInfo, error) {
 	// API 키 결정 (사용자 키 우선, 없으면 서버 키 정책에 따라 결정)
 	apiKey := ""
 
@@ -161,25 +162,45 @@ func SummarizeTranscript(transcript string, userAPIKey string, userID string) (s
 	// Create the system prompt with the transcript
 	userPrompt := fmt.Sprintf("Transcript: %s\n", transcript)
 
-	// Create the request body
-	requestBody := GPTRequest{
-		Model: apiModel,
-		Messages: []GPTMessage{
-			{
-				Role:    "system",
-				Content: SummarizationPrompt,
-			},
-			{
-				Role:    "user",
-				Content: userPrompt,
-			},
-		},
-		MaxTokens:   apiMaxTokens,
-		Temperature: 0.2,
+	if len(request.Messages) >= 3 {
+		// Keep only the last 2 messages in the conversation history
+		// This prevents the context from growing too large
+		request.Messages = request.Messages[len(request.Messages)-2:]
 	}
 
+	request.Model = apiModel
+	request.MaxTokens = apiMaxTokens
+	request.Temperature = 0.2
+
+	request.Messages = append(request.Messages,
+		GPTMessage{
+			Role:    "system",
+			Content: SummarizationPrompt,
+		})
+	request.Messages = append(request.Messages,
+		GPTMessage{
+			Role:    "user",
+			Content: userPrompt,
+		})
+
+	// request = &GPTRequest{
+	// 	Model: apiModel,
+	// 	Messages: []GPTMessage{
+	// 		{
+	// 			Role:    "system",
+	// 			Content: SummarizationPrompt,
+	// 		},
+	// 		{
+	// 			Role:    "user",
+	// 			Content: userPrompt,
+	// 		},
+	// 	},
+	// 	MaxTokens:   apiMaxTokens,
+	// 	Temperature: 0.2,
+	// }
+
 	// Convert request body to JSON
-	requestJSON, err := json.Marshal(requestBody)
+	requestJSON, err := json.Marshal(request)
 	if err != nil {
 		return "", nil, err
 	}
@@ -228,6 +249,13 @@ func SummarizeTranscript(transcript string, userAPIKey string, userID string) (s
 	// Get the generated summary
 	summary := response.Choices[0].Message.Content
 
+	request.Messages = append(request.Messages,
+		GPTMessage{
+			Role:    "assistant",
+			Content: summary,
+		},
+	)
+
 	// Extract timestamps from the summary
 	timestamps := extractTimestamps(summary)
 
@@ -239,13 +267,18 @@ func SummarizeTranscript(transcript string, userAPIKey string, userID string) (s
 // userID: 사용자 ID (서버 API 키 사용 권한 확인용)
 func SummarizeChunks(chunks [][]TranscriptItem, userAPIKey string, userID string) (string, error) {
 	var finalSummary strings.Builder
+	var request *GPTRequest = &GPTRequest{}
 
 	for i, chunk := range chunks {
 		// Summarize the chunk
-		summary, _, err := SummarizeTranscript(GetFormattedTranscript(chunk), userAPIKey, userID)
+		summary, _, err := SummarizeTranscript(request, GetFormattedTranscript(chunk), userAPIKey, userID)
 		if err != nil {
 			return "", fmt.Errorf("failed to summarize chunk %d: %v", i+1, err)
 		}
+
+		// Remove any <think>...</think> tags from the summary
+		// This can happen when the AI model includes its thinking process
+		summary = regexp.MustCompile(`(?s)<think>.*?</think>`).ReplaceAllString(summary, "")
 
 		// Append the chunk summary to the final summary
 		finalSummary.WriteString(summary + "\n\n")
@@ -309,11 +342,86 @@ func extractTimestamps(summary string) []TimestampInfo {
 func GetFormattedTranscript(items []TranscriptItem) string {
 	var builder strings.Builder
 
+	entries := make([]Entry, len(items))
 	for _, item := range items {
-		builder.WriteString(fmt.Sprintf("[%s] %s\n", FormatTimestamp(item.Start), item.Text))
+		entries = append(entries, Entry{
+			Timestamp: FormatTimestamp(item.Start),
+			Text:      item.Text,
+		})
+		// builder.WriteString(fmt.Sprintf("%s %s\n", FormatTimestamp(item.Start), item.Text))
+	}
+	cleanedEntries := cleanEntries(entries)
+	for _, item := range cleanedEntries {
+		if item.Timestamp == "" || item.Text == "" {
+			continue
+		}
+		builder.WriteString(fmt.Sprintf("%s %s\n", item.Timestamp, item.Text))
 	}
 
 	return strings.TrimSpace(builder.String())
+}
+
+type Entry struct {
+	Timestamp string
+	Text      string
+}
+
+func cleanEntries(entries []Entry) []Entry {
+	var result []Entry
+
+	for _, e := range entries {
+		n := len(result)
+		if n > 0 {
+			prev := result[n-1]
+
+			// 1) 동일 타임스탬프 처리
+			if e.Timestamp == prev.Timestamp {
+				// (1-1) 완전 중복
+				if e.Text == prev.Text {
+					result[n-1] = e
+					// (1-2) 뒷텍스트가 앞텍스트를 접두어로 포함
+				} else if strings.HasPrefix(e.Text, prev.Text) {
+					remainder := strings.TrimSpace(
+						strings.TrimPrefix(e.Text, prev.Text),
+					)
+					// 빈 문자열이 아니면 그 나머지를 남김
+					if remainder != "" {
+						result[n-1] = Entry{e.Timestamp, remainder}
+					} else {
+						// 접두어 제거 뒤 빈 문자열이면
+						// 단순 교체해 둠(중복 처리와 같음)
+						result[n-1] = e
+					}
+				} else {
+					// 그 외엔 뒤 항목으로 교체
+					result[n-1] = e
+				}
+				continue
+			}
+
+			// 2) 앞 타임스탬프가 더 앞이고 내용 포함된 경우
+			if prev.Timestamp < e.Timestamp && strings.Contains(e.Text, prev.Text) {
+				remainder := strings.TrimSpace(
+					strings.Replace(e.Text, prev.Text, "", 1),
+				)
+				if remainder != "" {
+					result = append(result, Entry{e.Timestamp, remainder})
+				}
+				// remainder가 빈 문자열이면 완전 중복처럼 간주하고 skip
+				continue
+			}
+
+			// 3) 타임스탬프 다르지만 텍스트가 완전 동일한 경우
+			if prev.Timestamp != e.Timestamp && e.Text == prev.Text {
+				continue
+			}
+		}
+
+		// 위 모든 경우에 해당하지 않으면 있는 그대로 추가
+		result = append(result, e)
+	}
+
+	return result
 }
 
 // FormatTimestamp converts a float64 timestamp in seconds to [MM:SS] format

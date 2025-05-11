@@ -157,7 +157,7 @@ func HandleSummaryRequest(c *gin.Context) {
 	}
 
 	// Get video transcript in chunks
-	chunks, err := services.GetTranscript(videoID, 800.0) // Chunk size of 800 seconds
+	chunks, err := services.GetTranscript(videoID, 240.0) // Chunk size of 800 seconds
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to get video transcript: " + err.Error(),

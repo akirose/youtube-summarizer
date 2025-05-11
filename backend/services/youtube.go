@@ -146,6 +146,7 @@ func GetTranscript(videoID string, chunkSize float64) ([][]TranscriptItem, error
 		"--skip-download",     // Don't download the video
 		"--sub-format", "vtt", // Get WebVTT format
 		"--paths", tempDir, // Save subtitle files to our temp directory
+		"-o '%(id)s.%(ext)s'",
 		videoURL,
 	)
 

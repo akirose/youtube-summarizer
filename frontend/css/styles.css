@@ -18,26 +18,55 @@ body {
     padding: 20px;
 }
 
-/* Search Container Styles */
-.search-container {
+/* App Header Styles */
+.app-header {
+    display: flex;
+    justify-content: flex-end; /* 로그인 버튼을 우측에 배치 */
+    margin-bottom: 20px;
+    width: 100%;
+}
+
+.user-controls {
+    display: flex;
+    align-items: center;
+    position: relative;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+/* 메인 콘텐츠 영역 - 로고와 검색 폼 포함 */
+.main-content {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    min-height: 40vh;
-    padding: 20px;
-    transition: min-height 0.3s ease;
+    width: 100%;
+    min-height: 60vh;
 }
 
+/* 로고 스타일 */
 .logo {
-    margin-bottom: 20px;
     text-align: center;
+    margin-bottom: 20px; /* 로고와 검색 폼 사이 간격 */
 }
 
 .logo h1 {
-    font-size: 2.5rem;
-    color: #202124;
-    margin-bottom: 5px;
+    font-size: 2.2rem;
+    color: #333;
+    margin: 0;
+}
+
+/* 검색 컨테이너 스타일 - 중복 제거 */
+.search-container {
+    width: 100%;
+    max-width: 850px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding-top: 0;
+    min-height: auto;
+    transition: min-height 0.3s ease;
 }
 
 .search-box {
@@ -316,6 +345,63 @@ body {
     width: auto;
 }
 
+/* 컴팩트 모드 (검색 후) */
+.main-content.compact {
+    flex-direction: row;
+    align-items: center;
+    gap: 20px;
+    padding: 15px 20px;
+    background-color: #fff;
+    margin-bottom: 20px;
+    border-radius: 8px;
+    box-shadow: 0 1px 6px rgba(32, 33, 36, 0.1);
+}
+
+.compact .logo {
+    margin-bottom: 0;
+}
+
+.compact .logo h1 {
+    font-size: 1.5rem;
+}
+
+.compact .search-container {
+    margin-top: 0;
+}
+
+.compact #search-form {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+}
+
+.compact .search-btn {
+    width: auto;
+}
+
+@media (max-width: 768px) {
+    .main-content.compact {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .compact #search-form {
+        flex-direction: column;
+    }
+    
+    .results-container {
+        flex-direction: column;
+    }
+    
+    .search-container {
+        min-height: 30vh;
+    }
+    
+    .logo h1 {
+        font-size: 2rem;
+    }
+}
+
 @media (max-width: 768px) {
     .compact #search-form {
         flex-direction: column;
@@ -380,20 +466,11 @@ body {
 }
 
 /* App Header Styles */
-.app-header {
+.header-content {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
-    padding-bottom: 15px;
-    border-bottom: 1px solid #eee;
-}
-
-.user-controls {
-    display: flex;
-    align-items: center;
-    position: relative;
-    gap: 8px;
+    width: 100%;
 }
 
 .login-button {

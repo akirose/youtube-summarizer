@@ -17,6 +17,8 @@ const clearBtn = document.getElementById('clear-btn');
 const searchBtn = document.getElementById('search-btn');
 const searchContainer = document.querySelector('.search-container');
 const resultsContainer = document.getElementById('results-container');
+const mainContent = document.querySelector('.main-content'); // 새로운 메인 컨텐츠 요소 추가
+const logo = document.querySelector('.logo'); // 로고 요소 추가
 const videoTitle = document.getElementById('video-title');
 const summaryElement = document.getElementById('summary');
 const loadingElement = document.getElementById('loading');
@@ -420,9 +422,19 @@ function resetToInitialState() {
     }
     
     // 검색창을 컴팩트 모드에서 원래 크기로 복원
-    if (searchContainer && searchContainer.classList.contains('compact')) {
-        searchContainer.classList.remove('compact');
+    // if (searchContainer && searchContainer.classList.contains('compact')) {
+    //     searchContainer.classList.remove('compact');
+    // }
+    
+    // 메인 콘텐츠 컴팩트 모드 복원
+    if (mainContent && mainContent.classList.contains('compact')) {
+        mainContent.classList.remove('compact');
     }
+    
+    // 로고 크기 복원
+    // if (logo && logo.classList.contains('compact')) {
+    //     logo.classList.remove('compact');
+    // }
     
     // 비디오 플레이어 정리
     if (player) {
@@ -663,12 +675,12 @@ function handleSearch(event) {
     // Show loading state
     showLoading();
     
-    // If the search container is not in compact mode, make it compact
-    if (!searchContainer.classList.contains('compact')) {
-        searchContainer.classList.add('compact');
+    // 메인 콘텐츠와 검색 컨테이너 컴팩트 모드로 전환
+    if (mainContent && !mainContent.classList.contains('compact')) {
+        mainContent.classList.add('compact');
     }
     
-    // Show results container
+    // 결과 컨테이너 표시
     resultsContainer.classList.remove('hidden');
     
     // API가 준비되었는지 확인하고 비디오 로드
@@ -1139,6 +1151,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Populate the dropdown with video titles
     function populateDropdown(summaries) {
+        if (!summaries || summaries.length === 0) {
+            dropdown.style.display = "none";
+            return;
+        }
+        
         dropdown.innerHTML = ""; // Clear existing items
         summaries.forEach((summary) => {
             const item = document.createElement("div");
@@ -1150,21 +1167,28 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             dropdown.appendChild(item);
         });
+        
+        // 새 레이아웃에 맞게 드롭다운 위치 조정
         dropdown.style.display = "block";
-
-        // Adjust dropdown positioning to appear directly below the search input
+        
+        // URL 입력 필드의 위치 및 크기 가져오기
         const urlInputRect = urlInput.getBoundingClientRect();
+        
+        // 드롭다운 위치 설정 - 입력 필드 아래에 배치
         dropdown.style.position = "absolute";
-        dropdown.style.top = `${urlInputRect.bottom + window.scrollY + 10}px`;
-        dropdown.style.left = `${urlInputRect.left + window.scrollX - 8}px`;
+        dropdown.style.top = `${urlInputRect.bottom + window.scrollY + 8}px`;
+        dropdown.style.left = `${urlInputRect.left + window.scrollX - 5}px`;
         dropdown.style.width = `${urlInputRect.width}px`;
         dropdown.style.zIndex = "1000";
     }
 
-    // Show dropdown on input focus
-    urlInput.addEventListener("focus", fetchRecentTitles);
+    // 입력 필드에 포커스가 오면 드롭다운 표시
+    urlInput.addEventListener("focus", () => {
+        console.log("URL input focused, fetching recent titles");
+        fetchRecentTitles();
+    });
 
-    // Hide dropdown when clicking outside
+    // 입력 필드 외부를 클릭하면 드롭다운 닫기
     document.addEventListener("click", (event) => {
         if (!urlInput.contains(event.target) && !dropdown.contains(event.target)) {
             dropdown.style.display = "none";
