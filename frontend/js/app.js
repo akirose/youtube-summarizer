@@ -37,6 +37,19 @@ const userProfileContainer = document.getElementById('user-profile');
 const userAvatar = document.getElementById('user-avatar');
 const userAvatarDropdown = document.getElementById('user-avatar-dropdown');
 const userName = document.getElementById('user-name');
+const darkModeCheckbox = document.getElementById('dark-mode-checkbox');
+
+// Function to apply dark mode
+function applyDarkMode(isDark) {
+    if (isDark) {
+        document.body.classList.add('dark-mode');
+    } else {
+        document.body.classList.remove('dark-mode');
+    }
+    if (darkModeCheckbox) { // Ensure checkbox exists
+        darkModeCheckbox.checked = isDark;
+    }
+}
 
 // Initialize the application
 async function init() {
@@ -88,6 +101,24 @@ async function init() {
 
     // Initialize tab system
     initTabSystem();
+
+    // Dark mode toggle event listener
+    if (darkModeCheckbox) {
+        darkModeCheckbox.addEventListener('change', (event) => {
+            const isDark = event.target.checked;
+            applyDarkMode(isDark);
+            localStorage.setItem('darkMode', isDark ? 'enabled' : 'disabled');
+        });
+    }
+
+    // Load dark mode preference
+    const savedDarkMode = localStorage.getItem('darkMode');
+    if (savedDarkMode === 'enabled') {
+        applyDarkMode(true);
+    } else if (savedDarkMode === 'disabled') {
+        applyDarkMode(false);
+    }
+    // If nothing is saved, it defaults to light mode (no class on body)
 }
 
 // Toggle clear button visibility

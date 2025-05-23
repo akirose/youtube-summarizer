@@ -1,3 +1,12 @@
+:root {
+  --dark-background: #121212;
+  --dark-text: #ffffff;
+  --dark-primary: #bb86fc;
+  --dark-secondary: #03dac6;
+  --dark-surface: #1e1e1e;
+  --dark-border: #2c2c2c;
+}
+
 /* Global Styles */
 * {
     margin: 0;
@@ -931,4 +940,387 @@ body {
     background-color: #f8f9fa;
     border-radius: 8px;
     min-height: 200px;
+}
+
+/* Dark Mode Styles */
+body.dark-mode {
+    background-color: var(--dark-background);
+    color: var(--dark-text);
+}
+
+body.dark-mode .container {
+    /* No specific change for container background, inherits from body or specific elements inside it will override */
+}
+
+body.dark-mode .logo h1 {
+    color: var(--dark-text);
+}
+
+body.dark-mode .input-wrapper {
+    background-color: var(--dark-surface);
+    border: 1px solid var(--dark-border);
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.2); /* Adjusted shadow for dark mode */
+}
+
+body.dark-mode .input-wrapper:hover,
+body.dark-mode .input-wrapper:focus-within {
+    border-color: var(--dark-primary);
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.3); /* Adjusted shadow for dark mode */
+}
+
+body.dark-mode #video-url {
+    color: var(--dark-text);
+    background-color: transparent; /* Already transparent, but good to be explicit */
+}
+
+body.dark-mode .input-wrapper .material-symbols-outlined {
+    color: var(--dark-text); /* Lighter icon color for dark inputs */
+}
+
+body.dark-mode .clear-btn {
+    color: var(--dark-text);
+}
+
+body.dark-mode .search-btn {
+    background-color: var(--dark-surface);
+    border: 1px solid var(--dark-border);
+    color: var(--dark-text);
+}
+
+body.dark-mode .search-btn:hover {
+    background-color: #2a2a2a; /* Slightly lighter surface for hover */
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
+}
+
+body.dark-mode .summary-container {
+    background-color: var(--dark-surface);
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.2); /* Adjusted shadow */
+    border: 1px solid var(--dark-border); /* Add subtle border */
+}
+
+body.dark-mode #video-title {
+    color: var(--dark-text);
+}
+
+body.dark-mode .summary {
+    color: var(--dark-text);
+}
+
+body.dark-mode .summary-text {
+    color: var(--dark-text);
+}
+
+body.dark-mode .timestamp {
+    background-color: var(--dark-surface); /* Darker background for timestamps */
+    color: var(--dark-primary);
+    border: 1px solid var(--dark-primary);
+}
+
+body.dark-mode .timestamp:hover {
+    background-color: var(--dark-primary);
+    color: var(--dark-surface); /* Text color changes for contrast on hover */
+}
+
+body.dark-mode .timestamp.active {
+    background-color: var(--dark-primary);
+    color: var(--dark-background); /* Ensure contrast for active timestamp */
+    border-color: var(--dark-primary);
+}
+
+body.dark-mode .section-divider {
+    background-color: var(--dark-border);
+}
+
+body.dark-mode .spinner {
+    border-top: 4px solid var(--dark-primary); /* Spinner primary color */
+    border: 4px solid var(--dark-surface); /* Spinner track color */
+}
+
+body.dark-mode .main-content.compact {
+    background-color: var(--dark-surface);
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.2);
+    border-radius: 8px; /* Ensure border radius is maintained */
+}
+
+body.dark-mode .compact .logo h1 {
+    color: var(--dark-text);
+}
+
+body.dark-mode .cached-indicator {
+    background-color: var(--dark-surface);
+    border: 1px solid var(--dark-primary);
+    color: var(--dark-primary);
+}
+
+body.dark-mode #dropdown {
+    background-color: var(--dark-surface);
+    border: 1px solid var(--dark-border);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-mode .dropdown-item {
+    color: var(--dark-text);
+}
+
+body.dark-mode .dropdown-item:hover {
+    background-color: #2a2a2a; /* Slightly lighter surface for hover */
+}
+
+body.dark-mode .dropdown-item:active {
+    background-color: #3a3a3a; /* Slightly darker for active */
+}
+
+body.dark-mode .login-button {
+    background-color: var(--dark-primary);
+    color: var(--dark-background); /* High contrast text on primary button */
+}
+
+body.dark-mode .login-button:hover {
+    background-color: #a06cd5; /* Slightly lighter primary for hover */
+}
+
+body.dark-mode .user-avatar-container:hover {
+    background-color: var(--dark-surface);
+}
+
+body.dark-mode .user-avatar-container #user-name {
+    color: var(--dark-text);
+}
+
+body.dark-mode .user-dropdown {
+    background-color: var(--dark-surface);
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--dark-border);
+}
+
+body.dark-mode .user-info {
+    border-bottom: 1px solid var(--dark-border);
+}
+
+body.dark-mode #user-name, body.dark-mode .user-name { /* Covers both instances of user-name */
+    color: var(--dark-text);
+}
+
+body.dark-mode .user-email {
+    color: #a0a0a0; /* Lighter grey for email */
+}
+
+body.dark-mode .dropdown-item .material-symbols-outlined {
+    color: #a0a0a0; /* Lighter grey for icons in dropdown */
+}
+
+body.dark-mode .modal-content {
+    background-color: var(--dark-surface);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--dark-border);
+}
+
+body.dark-mode .modal-header {
+    border-bottom: 1px solid var(--dark-border);
+}
+
+body.dark-mode .modal-header h3 {
+    color: var(--dark-text);
+}
+
+body.dark-mode .close-modal {
+    color: var(--dark-text);
+}
+
+body.dark-mode .close-modal:hover {
+    color: var(--dark-primary);
+}
+
+body.dark-mode .google-login-btn {
+    background-color: var(--dark-surface);
+    border: 1px solid var(--dark-border);
+    color: var(--dark-text);
+}
+
+body.dark-mode .google-login-btn:hover {
+    background-color: #2a2a2a;
+}
+
+body.dark-mode .other-login-placeholder {
+    border: 1px dashed var(--dark-border);
+    color: #a0a0a0;
+}
+
+body.dark-mode .api-notice {
+    background-color: var(--dark-surface); /* Or a slightly tinted surface */
+    border-radius: 4px;
+    color: var(--dark-primary); /* Make notice text stand out */
+    border: 1px solid var(--dark-primary);
+}
+
+body.dark-mode .api-key-input-container label {
+    color: var(--dark-text);
+}
+
+body.dark-mode #api-key-input {
+    background-color: #2c2c2c; /* Slightly different from main surface for emphasis */
+    border: 1px solid var(--dark-border);
+    color: var(--dark-text);
+}
+
+body.dark-mode #api-key-input:focus {
+    border-color: var(--dark-primary);
+    box-shadow: 0 0 0 2px var(--dark-primary-transparent, rgba(187, 134, 252, 0.2)); /* Fallback if var not defined */
+}
+
+body.dark-mode .api-key-help {
+    color: #a0a0a0;
+}
+
+body.dark-mode .api-key-help a {
+    color: var(--dark-primary);
+}
+
+body.dark-mode .primary-btn {
+    background-color: var(--dark-primary);
+    color: var(--dark-background); /* High contrast */
+}
+
+body.dark-mode .primary-btn:hover {
+    background-color: #a06cd5;
+}
+
+body.dark-mode .secondary-btn {
+    background-color: var(--dark-surface);
+    color: var(--dark-text);
+    border: 1px solid var(--dark-border);
+}
+
+body.dark-mode .secondary-btn:hover {
+    background-color: #2a2a2a;
+}
+
+body.dark-mode .success-message {
+    background-color: var(--dark-secondary); /* Using secondary for success */
+    color: var(--dark-background); /* High contrast */
+    border: 1px solid var(--dark-secondary);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-mode .tabs-nav {
+    border-bottom: 1px solid var(--dark-border);
+}
+
+body.dark-mode .tab-btn {
+    color: #a0a0a0; /* Inactive tab text color */
+}
+
+body.dark-mode .tab-btn:hover {
+    color: var(--dark-primary);
+}
+
+body.dark-mode .tab-btn.active {
+    color: var(--dark-primary);
+    border-bottom: 2px solid var(--dark-primary);
+}
+
+body.dark-mode .transcript-item {
+    background-color: var(--dark-surface);
+    border: 1px solid var(--dark-border); /* Add subtle border */
+}
+
+body.dark-mode .transcript-item:hover {
+    background-color: #2a2a2a;
+}
+
+body.dark-mode .transcript-timestamp {
+    color: var(--dark-primary);
+}
+
+body.dark-mode .transcript-text {
+    color: var(--dark-text);
+}
+
+body.dark-mode .placeholder-text {
+    color: #a0a0a0;
+}
+
+body.dark-mode .custom-summary {
+    background-color: var(--dark-surface);
+    border: 1px solid var(--dark-border);
+}
+
+/* Webkit scrollbar styling for dark mode */
+body.dark-mode ::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+
+body.dark-mode ::-webkit-scrollbar-track {
+    background: var(--dark-surface);
+}
+
+body.dark-mode ::-webkit-scrollbar-thumb {
+    background-color: #2c2c2c; /* A bit darker than surface */
+    border-radius: 6px;
+    border: 3px solid var(--dark-surface); /* Creates padding around thumb */
+}
+
+body.dark-mode ::-webkit-scrollbar-thumb:hover {
+    background-color: #3a3a3a; /* Lighter on hover */
+}
+
+body.dark-mode ::-webkit-scrollbar-corner {
+    background: var(--dark-surface); /* For corners where scrollbars meet */
+}
+
+/* Dark Mode Toggle Switch */
+.dark-mode-toggle {
+  display: flex;
+  align-items: center;
+  margin-right: 16px; /* Add some spacing */
+}
+
+.dark-mode-toggle input[type="checkbox"] {
+  display: none;
+}
+
+.dark-mode-toggle .toggle-label {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px; /* Adjust size as needed */
+  height: 40px; /* Adjust size as needed */
+  border-radius: 50%;
+  background-color: #f0f0f0; /* Light mode background */
+  transition: background-color 0.3s ease;
+}
+
+.dark-mode-toggle .toggle-label:hover {
+  background-color: #e0e0e0;
+}
+
+.dark-mode-toggle .sun-icon,
+.dark-mode-toggle .moon-icon {
+  font-size: 20px;
+  color: #202124; /* Light mode icon color */
+}
+
+.dark-mode-toggle .moon-icon {
+  display: none; /* Hidden in light mode */
+}
+
+/* Dark mode styles for the toggle */
+body.dark-mode .dark-mode-toggle .toggle-label {
+  background-color: var(--dark-surface); /* Dark mode background */
+}
+
+body.dark-mode .dark-mode-toggle .toggle-label:hover {
+  background-color: #3a3a3a; /* Dark mode hover */
+}
+
+body.dark-mode .dark-mode-toggle .sun-icon {
+  display: none; /* Hidden in dark mode */
+}
+
+body.dark-mode .dark-mode-toggle .moon-icon {
+  display: block; /* Visible in dark mode */
+  color: var(--dark-text); /* Dark mode icon color */
 }
