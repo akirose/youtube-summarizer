@@ -9,6 +9,7 @@ let userProfile = null; // 사용자 프로필 정보 저장
 let googleAuth = null; // Google 인증 객체
 let needsApiKey = true; // API 키가 필요한지 여부 (기본값은 필요함)
 let serverKeyPolicy = null; // 서버 API 키 정책
+let summaryEventSource = null; // For SSE connection
 
 // DOM elements
 const searchForm = document.getElementById('search-form');
@@ -953,33 +954,111 @@ function fetchSummary(url) {
         body: JSON.stringify(data)
     };
     
+    // Close any existing SSE connection before starting a new summary request
+    if (summaryEventSource) {
+        summaryEventSource.close();
+        summaryEventSource = null;
+        console.log('Previous SSE connection closed.');
+    }
+
     // Fetch summary
     fetch(apiUrl, options)
-        .then(response => {
-            if (!response.ok) {
-                // 401 오류인 경우 인증 필요
+        .then(async response => {
+            if (response.status === 200) { // Cached summary
+                const data = await response.json();
+                hideLoading();
+                displaySummary(data);
+            } else if (response.status === 202) { // Job queued, expect SSE
+                console.log('Summarization job queued. Waiting for SSE updates.');
+                // The loading indicator remains visible.
+                // Now, set up the SSE connection.
+                summaryEventSource = new EventSource('/api/summary/events');
+
+                summaryEventSource.onopen = () => {
+                    console.log('SSE connection established for summary updates.');
+                };
+
+                summaryEventSource.addEventListener('summary_complete', (event) => {
+                    console.log('SSE summary_complete event received:', event.data);
+                    try {
+                        const summaryData = JSON.parse(event.data);
+                        hideLoading();
+                        displaySummary(summaryData);
+                    } catch (e) {
+                        console.error('Error parsing summary_complete data:', e);
+                        hideLoading();
+                        displayError({ message: 'Failed to parse summary data from server.' });
+                    }
+                    if (summaryEventSource) {
+                        summaryEventSource.close();
+                        summaryEventSource = null;
+                        console.log('SSE connection closed after summary_complete.');
+                    }
+                });
+
+                summaryEventSource.addEventListener('summary_error', (event) => {
+                    console.log('SSE summary_error event received:', event.data);
+                    try {
+                        const errorData = JSON.parse(event.data);
+                        hideLoading();
+                        displayError({ message: errorData.error || 'An error occurred during summarization.' });
+                    } catch (e) {
+                        console.error('Error parsing summary_error data:', e);
+                        hideLoading();
+                        displayError({ message: 'Received an unparsable error from server.' });
+                    }
+                    if (summaryEventSource) {
+                        summaryEventSource.close();
+                        summaryEventSource = null;
+                        console.log('SSE connection closed after summary_error.');
+                    }
+                });
+
+                summaryEventSource.onerror = (error) => {
+                    console.error('SSE connection error:', error);
+                    hideLoading();
+                    // Check readyState to avoid showing error if it was intentionally closed
+                    if (summaryEventSource && summaryEventSource.readyState !== EventSource.CLOSED) {
+                         displayError({ message: 'Lost connection to summary notification service. Please try again.'});
+                    }
+                    if (summaryEventSource) {
+                        summaryEventSource.close();
+                        summaryEventSource = null;
+                        console.log('SSE connection closed due to error.');
+                    }
+                };
+
+            } else { // Handle other errors from the initial POST request
+                const errorData = await response.json().catch(() => ({})); // Try to parse JSON, default to empty if fails
+                let errorMessage = `Server responded with status: ${response.status}`;
+                if (errorData.error) {
+                    errorMessage = errorData.error;
+                } else if (response.statusText) {
+                    errorMessage = response.statusText;
+                }
+                
+                // Specific error handling based on status
                 if (response.status === 401) {
-                    // 세션이 만료된 경우 로그인 다시 요청
                     isLoggedIn = false;
                     showLoginModal();
-                    throw new Error('Authentication required. Please log in again.');
-                }
-                // 403 오류인 경우 API 키 필요
-                if (response.status === 403) {
+                    errorMessage = 'Authentication required. Please log in again.';
+                } else if (response.status === 403) {
                     showApiKeyModal();
-                    throw new Error('API key required. Please set your OpenAI API key.');
+                    errorMessage = 'API key required or invalid. Please set your OpenAI API key.';
+                } else if (response.status === 503) {
+                    errorMessage = 'Server is busy or job queue is full. Please try again later.';
                 }
-                throw new Error('Network response was not ok');
+                
+                throw new Error(errorMessage);
             }
-            return response.json();
         })
-        .then(data => {
+        .catch(error => { // Catches network errors from fetch() or errors thrown above
             hideLoading();
-            displaySummary(data);
-        })
-        .catch(error => {
-            hideLoading();
-            displayError(error);
+            displayError(error); // error should be an Error object with a message property
+            if (summaryEventSource) { // Ensure SSE is closed if POST fails mid-setup
+                summaryEventSource.close();
+                summaryEventSource = null;
+            }
         });
 }
 

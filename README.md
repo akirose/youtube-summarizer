@@ -36,14 +36,16 @@ youtube_summarizer/
 ### Prerequisites
 
 - Go 1.20 or higher
-- OpenAI API key
-- yt-dlp (https://github.com/yt-dlp/yt-dlp)
+- OpenAI API key (set in `.env` file)
+- `yt-dlp` installed and accessible in your PATH (see https://github.com/yt-dlp/yt-dlp)
 
 ### Backend Setup
 
-1. Clone this repository
-2. Navigate to the `backend` directory
-3. Copy `.env.example` to `.env` and fill in your API keys
+1. Clone this repository.
+2. Navigate to the `backend` directory.
+3. Copy `.env.example` to `.env` and fill in your API keys and other configurations.
+   - **`ANTHROPIC_API_KEY` / `PERPLEXITY_API_KEY`**: Your primary AI service API key.
+   - **`NUM_SUMMARY_WORKERS`**: (Optional) Sets the number of concurrent workers for video summarization tasks. Defaults to 3. See `.env.example` for more details.
 4. Install dependencies:
 
    ```bash
@@ -102,9 +104,25 @@ make help
 
 ## API Endpoints
 
-- `POST /api/summary`: Submit a YouTube URL for summarization
+- `POST /api/summary`: Submits a YouTube URL for summarization.
   - Request: `{ "url": "https://www.youtube.com/watch?v=..." }`
-  - Response: `{ "videoId": "...", "title": "...", "summary": "...", "timestamps": [...] }`
+  - Response (Cached Summary - HTTP 200): `{ "videoId": "...", "title": "...", "summary": "...", "timestamps": [...], "cached": true }`
+  - Response (Job Queued - HTTP 202): `{ "message": "Summarization request received and queued.", "video_id": "..." }`
+    - *Note: If a job is queued, clients should connect to the SSE endpoint below for real-time updates.*
+  - Response (Job Already Active - HTTP 202): `{ "message": "Summarization for this video is already in progress. You will be notified upon completion.", "video_id": "..." }`
+  - Response (Error - e.g., HTTP 400, 401, 403, 503): `{ "error": "Error message details" }`
+
+- `GET /api/summary/events`: Establishes a Server-Sent Events (SSE) connection for real-time updates on summarization jobs.
+  - Authentication: Requires user session (cookie-based).
+  - Events:
+    - `event: summary_complete\ndata: {SummaryResponse JSON}\n\n`
+    - `event: summary_error\ndata: {"videoId": "...", "error": "Error message"}\n\n`
+
+- `GET /user/info`: Retrieves information about the currently authenticated user.
+- `GET /user/api-key-status`: Checks if the current user needs to provide their own API key.
+- `GET /api/user-recent-summaries`: Fetches a list of recently summarized videos for the authenticated user.
+- `/auth/google` (GET): Initiates Google OAuth login.
+- `/auth/logout` (POST): Logs out the current user.
 
 ## Usage
 
