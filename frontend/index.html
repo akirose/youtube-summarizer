@@ -75,7 +75,34 @@
                     <div class="spinner"></div>
                     <p>Generating summary...</p>
                 </div>
-                <div id="summary" class="summary"></div>
+                
+                <!-- Tabs Navigation -->
+                <div class="tabs-container">
+                    <div class="tabs-nav">
+                        <button class="tab-btn active" data-tab="summary">Summary</button>
+                        <button class="tab-btn" data-tab="transcript">Transcript</button>
+                        <button class="tab-btn" data-tab="custom-summary">Custom Summary</button>
+                    </div>
+                    
+                    <!-- Tab Contents -->
+                    <div class="tab-contents">
+                        <div id="tab-summary" class="tab-content active">
+                            <div id="summary" class="summary"></div>
+                        </div>
+                        
+                        <div id="tab-transcript" class="tab-content">
+                            <div id="transcript" class="transcript">
+                                <p class="placeholder-text">Transcript will appear here</p>
+                            </div>
+                        </div>
+                        
+                        <div id="tab-custom-summary" class="tab-content">
+                            <div class="custom-summary">
+                                <p class="placeholder-text">Under Construct</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

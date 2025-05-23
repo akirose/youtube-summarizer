@@ -19,11 +19,12 @@ type SummaryRequest struct {
 
 // SummaryResponse represents the response with the video summary
 type SummaryResponse struct {
-	VideoID    string             `json:"videoId"`
-	Title      string             `json:"title"`
-	Summary    string             `json:"summary"`
-	Timestamps []models.Timestamp `json:"timestamps"`
-	Cached     bool               `json:"cached"`
+	VideoID    string                    `json:"videoId"`
+	Title      string                    `json:"title"`
+	Summary    string                    `json:"summary"`
+	Timestamps []models.Timestamp        `json:"timestamps"`
+	Transcript []services.TranscriptItem `json:"transcript,omitempty"`
+	Cached     bool                      `json:"cached"`
 }
 
 // Global cache instance
@@ -135,12 +136,25 @@ func HandleSummaryRequest(c *gin.Context) {
 				// TODO: 제대로 된 로깅 구현
 			}
 
-			// Return cached response
+			// If there's transcript data in the cache (may not exist in older cache entries)
+			var transcript []services.TranscriptItem = cachedItem.Transcript
+
+			// Get fresh transcript data if needed (not in cache)
+			if len(transcript) == 0 {
+				chunks, err := services.GetTranscript(videoID, 0) // Here we use 0 to get all items in one chunk
+				if err == nil && len(chunks) > 0 {
+					transcript = chunks[0] // Take the first chunk which should contain all items
+					summaryCache.Set(videoID, cachedItem.Title, cachedItem.Summary, nil, transcript)
+				}
+			}
+
+			// Return cached response with transcript if available
 			c.JSON(http.StatusOK, SummaryResponse{
 				VideoID:    videoID,
 				Title:      cachedItem.Title,
 				Summary:    cachedItem.Summary,
 				Timestamps: cachedItem.Timestamps,
+				Transcript: MergeTranscript(transcript),
 				Cached:     true,
 			})
 			return
@@ -157,7 +171,7 @@ func HandleSummaryRequest(c *gin.Context) {
 	}
 
 	// Get video transcript in chunks
-	chunks, err := services.GetTranscript(videoID, 240.0) // Chunk size of 800 seconds
+	chunks, err := services.GetTranscript(videoID, 400.0) // Chunk size of 800 seconds
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to get video transcript: " + err.Error(),
@@ -174,22 +188,69 @@ func HandleSummaryRequest(c *gin.Context) {
 		return
 	}
 
-	// 전역 캐시와 사용자 요약에 결과 저장
+	// Get transcript data for the transcript tab
+	var transcriptItems []services.TranscriptItem
+
+	// Combine all chunks into a flat array of transcript items
+	if len(chunks) > 0 {
+		// Combine all chunks into a flat array of transcript items
+		for _, chunk := range chunks {
+			transcriptItems = append(transcriptItems, chunk...)
+		}
+
+		// Sort by timestamp to ensure correct order
+		services.SortTranscriptItemsByTime(transcriptItems)
+	}
+
+	// 전역 캐시와 사용자 요약에 결과 저장 (트랜스크립트 포함)
 	if summaryCache != nil {
-		if err := summaryCache.AddUserSummaryToCache(userID, videoID, videoInfo.Title, summary, nil); err != nil {
+		if err := summaryCache.AddUserSummaryToCache(userID, videoID, videoInfo.Title, summary, nil, transcriptItems); err != nil {
 			// Log the error but don't fail the request
 			// TODO: Implement proper logging
 		}
 	}
 
-	// Return response
+	// Return response with both summary and transcript
 	c.JSON(http.StatusOK, SummaryResponse{
 		VideoID:    videoID,
 		Title:      videoInfo.Title,
 		Summary:    summary,
 		Timestamps: nil, // Timestamps are not used in this flow
+		Transcript: MergeTranscript(transcriptItems),
 		Cached:     false,
 	})
+}
+
+func MergeTranscript(transcript []services.TranscriptItem) []services.TranscriptItem {
+	if len(transcript) == 0 {
+		return transcript
+	}
+
+	var result []services.TranscriptItem
+	var currentItem services.TranscriptItem
+	const intervalSeconds float64 = 15.0
+
+	// Initialize with the first item
+	currentItem = transcript[0]
+
+	for i := 1; i < len(transcript); i++ {
+		// If the next item starts within 15 seconds of the current item's start time
+		if transcript[i].Start-currentItem.Start < intervalSeconds {
+			// Append text to the current item
+			currentItem.Text += transcript[i].Text
+			// Keep the duration updating to the last item's end time
+			currentItem.Duration = transcript[i].Start + transcript[i].Duration - currentItem.Start
+		} else {
+			// Current interval is complete, add to result and start a new interval
+			result = append(result, currentItem)
+			currentItem = transcript[i]
+		}
+	}
+
+	// Add the last item
+	result = append(result, currentItem)
+
+	return result
 }
 
 // GetRecentSummariesHandler handles requests to fetch the last 10 video summaries

@@ -342,86 +342,11 @@ func extractTimestamps(summary string) []TimestampInfo {
 func GetFormattedTranscript(items []TranscriptItem) string {
 	var builder strings.Builder
 
-	entries := make([]Entry, len(items))
 	for _, item := range items {
-		entries = append(entries, Entry{
-			Timestamp: FormatTimestamp(item.Start),
-			Text:      item.Text,
-		})
-		// builder.WriteString(fmt.Sprintf("%s %s\n", FormatTimestamp(item.Start), item.Text))
-	}
-	cleanedEntries := cleanEntries(entries)
-	for _, item := range cleanedEntries {
-		if item.Timestamp == "" || item.Text == "" {
-			continue
-		}
-		builder.WriteString(fmt.Sprintf("%s %s\n", item.Timestamp, item.Text))
+		builder.WriteString(fmt.Sprintf("%s %s\n", FormatTimestamp(item.Start), item.Text))
 	}
 
 	return strings.TrimSpace(builder.String())
-}
-
-type Entry struct {
-	Timestamp string
-	Text      string
-}
-
-func cleanEntries(entries []Entry) []Entry {
-	var result []Entry
-
-	for _, e := range entries {
-		n := len(result)
-		if n > 0 {
-			prev := result[n-1]
-
-			// 1) 동일 타임스탬프 처리
-			if e.Timestamp == prev.Timestamp {
-				// (1-1) 완전 중복
-				if e.Text == prev.Text {
-					result[n-1] = e
-					// (1-2) 뒷텍스트가 앞텍스트를 접두어로 포함
-				} else if strings.HasPrefix(e.Text, prev.Text) {
-					remainder := strings.TrimSpace(
-						strings.TrimPrefix(e.Text, prev.Text),
-					)
-					// 빈 문자열이 아니면 그 나머지를 남김
-					if remainder != "" {
-						result[n-1] = Entry{e.Timestamp, remainder}
-					} else {
-						// 접두어 제거 뒤 빈 문자열이면
-						// 단순 교체해 둠(중복 처리와 같음)
-						result[n-1] = e
-					}
-				} else {
-					// 그 외엔 뒤 항목으로 교체
-					result[n-1] = e
-				}
-				continue
-			}
-
-			// 2) 앞 타임스탬프가 더 앞이고 내용 포함된 경우
-			if prev.Timestamp < e.Timestamp && strings.Contains(e.Text, prev.Text) {
-				remainder := strings.TrimSpace(
-					strings.Replace(e.Text, prev.Text, "", 1),
-				)
-				if remainder != "" {
-					result = append(result, Entry{e.Timestamp, remainder})
-				}
-				// remainder가 빈 문자열이면 완전 중복처럼 간주하고 skip
-				continue
-			}
-
-			// 3) 타임스탬프 다르지만 텍스트가 완전 동일한 경우
-			if prev.Timestamp != e.Timestamp && e.Text == prev.Text {
-				continue
-			}
-		}
-
-		// 위 모든 경우에 해당하지 않으면 있는 그대로 추가
-		result = append(result, e)
-	}
-
-	return result
 }
 
 // FormatTimestamp converts a float64 timestamp in seconds to [MM:SS] format

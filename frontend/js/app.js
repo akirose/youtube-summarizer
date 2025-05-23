@@ -67,6 +67,9 @@ async function init() {
     
     // 드롭다운 토글을 위한 이벤트 리스너 추가
     document.addEventListener('click', handleDropdownToggle);
+    
+    // Initialize tab system
+    initTabSystem();
 
     // Check if URL has video parameter
     const urlParams = new URLSearchParams(window.location.search);
@@ -82,6 +85,9 @@ async function init() {
             console.log('YouTube API not ready yet. Video will load when API is ready.');
         }
     }
+
+    // Initialize tab system
+    initTabSystem();
 }
 
 // Toggle clear button visibility
@@ -682,6 +688,14 @@ function handleSearch(event) {
     
     // 결과 컨테이너 표시
     resultsContainer.classList.remove('hidden');
+
+    // 새로운 영상 검색 시 모든 탭 내용 초기화
+    const summaryTab = document.getElementById('summary');
+    if (summaryTab) summaryTab.innerHTML = '';
+    const transcriptTab = document.getElementById('transcript');
+    if (transcriptTab) transcriptTab.innerHTML = '<p class="placeholder-text">Transcript will appear here</p>';
+    const customSummaryTab = document.querySelector('#tab-custom-summary .custom-summary');
+    if (customSummaryTab) customSummaryTab.innerHTML = '<p class="placeholder-text">Under Construct</p>';
     
     // API가 준비되었는지 확인하고 비디오 로드
     if (apiReady) {
@@ -797,7 +811,10 @@ function startTimeUpdateInterval() {
 
 // 현재 시간에 해당하는 타임스탬프 하이라이트
 function highlightCurrentTimestamp(currentTime) {
-    const timestamps = document.querySelectorAll('.timestamp');
+    // 현재 활성화된 탭에서만 타임스탬프를 하이라이트
+    const activeTabContent = document.querySelector('.tab-content.active');
+    if (!activeTabContent) return;
+    const timestamps = activeTabContent.querySelectorAll('.timestamp');
     let activeTimestamp = null;
     let minDifference = Infinity;
     
@@ -813,7 +830,7 @@ function highlightCurrentTimestamp(currentTime) {
         }
     });
     
-    if (activeTimestamp.classList.contains('active')) {
+    if (activeTimestamp && activeTimestamp.classList.contains('active')) {
         // 이미 활성화된 타임스탬프는 스킵
         return;
     }
@@ -864,6 +881,11 @@ function onPlayerStateChange(event) {
 function showLoading() {
     summaryElement.innerHTML = '';
     loadingElement.classList.remove('hidden');
+    // 요약 요청 시작 시 탭 컨테이너 숨김
+    const tabsContainer = document.querySelector('.tabs-container');
+    if (tabsContainer) {
+        tabsContainer.classList.add('hidden');
+    }
 }
 
 // Hide loading state
@@ -950,8 +972,19 @@ function displaySummary(data) {
     const summaryWithTimestamps = addClickableTimestamps(formattedSummary, data.timestamps);
     summaryHTML += `<div class="summary-text">${summaryWithTimestamps}</div>`;
     
-    // Update summary element
-    summaryElement.innerHTML = summaryHTML;
+    // Update summary element in the Summary tab
+    document.getElementById('summary').innerHTML = summaryHTML;
+
+    // 요약 데이터 도착 시 탭 컨테이너 보이기
+    const tabsContainer = document.querySelector('.tabs-container');
+    if (tabsContainer) {
+        tabsContainer.classList.remove('hidden');
+    }
+    
+    // Also update the transcript tab if there's transcript data
+    if (data.transcript && Array.isArray(data.transcript)) {
+        displayTranscript(data.transcript);
+    }
     
     // Add event listeners to timestamp elements
     const timestampElements = document.querySelectorAll('.timestamp');
@@ -1086,8 +1119,7 @@ function handleDropdownToggle(event) {
     const userDropdownMenu = document.getElementById('user-dropdown');
     
     // 아바타를 클릭한 경우 드롭다운 메뉴 토글
-    if (isLoggedIn && avatar && 
-       (event.target === avatar || avatar.contains(event.target))) {
+    if (isLoggedIn && avatar && (event.target === avatar || avatar.contains(event.target))) {
         // 드롭다운 메뉴 표시/숨김 토글
         userDropdownMenu.classList.toggle('show');
         event.stopPropagation(); // 이벤트 버블링 방지
@@ -1110,6 +1142,60 @@ function onYouTubeIframeAPIReady() {
     if (pendingVideoId) {
         handleSearch(new Event('submit'));
     }
+}
+
+// Tab switching functionality
+function initTabSystem() {
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            // Remove active class from all buttons and contents
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Add active class to clicked button and its content
+            button.classList.add('active');
+            const tabId = button.getAttribute('data-tab');
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+        });
+    });
+}
+
+// Format seconds to MM:SS format
+function formatTimestamp(seconds) {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.floor(seconds % 60);
+    return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+}
+
+// Display transcript in the transcript tab
+function displayTranscript(transcriptItems) {
+    const transcriptElement = document.getElementById('transcript');
+    if (!transcriptItems || transcriptItems.length === 0) {
+        transcriptElement.className = 'summary';
+        transcriptElement.innerHTML =
+            '<p class="placeholder-text">Transcript will appear here</p>';
+        return;
+    }
+
+    let transcriptHTML = '';
+    transcriptItems.forEach(item => {
+        transcriptHTML += `<p>`;
+        transcriptHTML += `<span class="timestamp" data-time="${item.start}">${formatTimestamp(item.start)}</span> `;
+        transcriptHTML += `<span class="summary-text">${item.text}</span>`;
+        transcriptHTML += `</p>`;
+    });
+
+    transcriptElement.className = 'summary'; // Summary와 동일한 스타일 적용
+    transcriptElement.innerHTML = transcriptHTML;
+
+    // 타임스탬프 클릭 이벤트 연결
+    transcriptElement.querySelectorAll('.timestamp').forEach(element => {
+        element.addEventListener('click', handleTimestampClick);
+    });
 }
 
 // Initialize the app when the DOM is loaded
