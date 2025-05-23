@@ -1098,7 +1098,7 @@ function addClickableTimestamps(summary, timestamps) {
         const time = hours * 3600 + minutes * 60 + seconds;
         
         // Create a clickable timestamp HTML
-        return `<span class="timestamp" data-time="${time}">${match}</span>`;
+        return `<span class="timestamp" data-time="${time}">${timeStr}</span>`;
     });
     
     return result;
