@@ -89,6 +89,9 @@ func main() {
 
 		// 사용자별 최근 요약 목록 (새 API 엔드포인트)
 		apiGroup.GET("/user-recent-summaries", auth.IsAuthenticated(), api.GetUserRecentSummariesHandler)
+
+		// SSE 엔드포인트 (인증 필요)
+		apiGroup.GET("/summary/events", auth.IsAuthenticated(), api.HandleSummaryEvents)
 	}
 
 	// Start server
