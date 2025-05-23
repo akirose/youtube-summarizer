@@ -582,7 +582,7 @@ func HandleSummaryEvents(c *gin.Context) {
 			log.Printf("Info: HandleSummaryEvents: SSE client disconnected: UserID %s. Channel deregistered and closed.", userID)
 		} else {
 			// This means the channel was already replaced by a newer connection or closed by another part of the code.
-			log.Printf("Info: HandleSummaryEvents: SSE client disconnected: UserID %s. Channel was already replaced or deregistered, no action needed by this defer.", userID)
+			log.Printf("Info: HandleSummaryEvents: SSE client disconnected: UserID %s. This handler's specific channel instance is no longer the active one in the global map (or was already closed). Cleanup likely handled by a newer connection or this channel instance was already superseded.", userID)
 		}
 		clientChannelsMutex.Unlock()
 	}()
