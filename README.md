@@ -43,10 +43,7 @@ youtube_summarizer/
 
 1. Clone this repository.
 2. Navigate to the `backend` directory.
-3. Copy `.env.example` to `.env` and fill in your API keys and other configurations.
-   - **`ANTHROPIC_API_KEY` / `PERPLEXITY_API_KEY`**: Your primary AI service API key.
-   - **`NUM_SUMMARY_WORKERS`**: (Optional) Sets the number of concurrent workers for video summarization tasks. Defaults to 3. See `.env.example` for more details.
-4. Install dependencies:
+3. Install dependencies:
 
    ```bash
    go mod tidy
@@ -54,7 +51,7 @@ youtube_summarizer/
    pip3 install yt-dlp
    ```
 
-5. Run the server using one of these methods:
+4. Run the server using one of these methods:
 
    **Using Make** (recommended):
 
