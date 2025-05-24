@@ -6,13 +6,14 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/akirose/youtube-summarizer/auth"
-	"github.com/akirose/youtube-summarizer/models"
 	"encoding/json"
 	"fmt"
 	"log"
 	"strconv"
 	"sync"
+
+	"github.com/akirose/youtube-summarizer/auth"
+	"github.com/akirose/youtube-summarizer/models"
 
 	"github.com/akirose/youtube-summarizer/services"
 	"github.com/gin-gonic/gin"
@@ -143,7 +144,7 @@ func startWorkerPool(numWorkers int, queue chan SummarizationJob) {
 							subscribers, ok := activeVideoJobs[currentJob.VideoID]
 							if ok {
 								log.Printf("DebugWorkerPanic: Worker %d: Deleting activeVideoJobs[%s] in panic recovery. Subscribers count: %d.", workerID, currentJob.VideoID, len(subscribers)) // New Log
-								delete(activeVideoJobs, currentJob.VideoID) // Clean up active job
+								delete(activeVideoJobs, currentJob.VideoID)                                                                                                                       // Clean up active job
 							}
 							activeVideoJobsMutex.Unlock()
 
@@ -157,22 +158,22 @@ func startWorkerPool(numWorkers int, queue chan SummarizationJob) {
 					summaryResp, err := processSummarizationJob(currentJob)
 
 					// After processing, get all subscribed users for this videoID
-				activeVideoJobsMutex.Lock()
-				subscribers, ok := activeVideoJobs[job.VideoID]
-				if ok {
-					delete(activeVideoJobs, job.VideoID) // Remove job from active list
-				}
-				activeVideoJobsMutex.Unlock()
-
 					activeVideoJobsMutex.Lock()
-					subscribers, subscribersFound := activeVideoJobs[currentJob.VideoID]
-					if subscribersFound {
-						log.Printf("DebugWorkerNormal: Worker %d: Deleting activeVideoJobs[%s]. Subscribers count: %d.", workerID, currentJob.VideoID, len(subscribers)) // New Log
-						delete(activeVideoJobs, currentJob.VideoID)
+					subscribers, ok := activeVideoJobs[job.VideoID]
+					if ok {
+						delete(activeVideoJobs, job.VideoID) // Remove job from active list
 					}
 					activeVideoJobsMutex.Unlock()
 
-					if !subscribersFound && err == nil {
+					// activeVideoJobsMutex.Lock()
+					// subscribers, subscribersFound := activeVideoJobs[currentJob.VideoID]
+					// if subscribersFound {
+					// 	log.Printf("DebugWorkerNormal: Worker %d: Deleting activeVideoJobs[%s]. Subscribers count: %d.", workerID, currentJob.VideoID, len(subscribers)) // New Log
+					// 	delete(activeVideoJobs, currentJob.VideoID)
+					// }
+					// activeVideoJobsMutex.Unlock()
+
+					if !ok && err == nil {
 						log.Printf("Warning: Worker %d: No subscribers found for VideoID: %s (Original UserID: %s) after processing. This might indicate a state issue or race condition if the job was meant to have subscribers.", workerID, currentJob.VideoID, currentJob.UserID)
 					}
 
@@ -466,7 +467,7 @@ func HandleSummaryRequest(c *gin.Context) {
 		// If queue is full, unregister the job from activeVideoJobs as it won't be processed now.
 		activeVideoJobsMutex.Lock()
 		log.Printf("DebugHandleSummaryRequest: Deleting activeVideoJobs[%s] due to full queue. UserID: %s", videoID, userID) // New Log
-		delete(activeVideoJobs, videoID) // Clean up: remove from active jobs as it won't be queued
+		delete(activeVideoJobs, videoID)                                                                                     // Clean up: remove from active jobs as it won't be queued
 		activeVideoJobsMutex.Unlock()
 		log.Printf("Warning: HandleSummaryRequest: Job queue full for VideoID: %s, UserID: %s. Rejected job and removed from active jobs list.", videoID, userID)
 		c.JSON(http.StatusServiceUnavailable, gin.H{
