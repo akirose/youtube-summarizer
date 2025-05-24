@@ -25,6 +25,7 @@ node_modules/
 
 # Environment variables
 .env
+.env.sample
 
 # Editor directories and files
 .windsurfrules
@@ -43,3 +44,4 @@ node_modules/
 tasks.json
 tasks/ 
 prd.txt
+README-task-master.md
