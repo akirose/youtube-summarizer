@@ -8,6 +8,8 @@ import (
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/akirose/youtube-summarizer/services"
 )
 
 // SummaryCache represents the cache for video summaries
@@ -19,11 +21,12 @@ type SummaryCache struct {
 
 // CacheItem represents a single cache item
 type CacheItem struct {
-	VideoID    string      `json:"videoId"`
-	Title      string      `json:"title"`
-	Summary    string      `json:"summary"`
-	Timestamps []Timestamp `json:"timestamps"`
-	CreatedAt  time.Time   `json:"createdAt"`
+	VideoID    string                    `json:"videoId"`
+	Title      string                    `json:"title"`
+	Summary    string                    `json:"summary"`
+	Timestamps []Timestamp               `json:"timestamps"`
+	Transcript []services.TranscriptItem `json:"transcript,omitempty"` // 트랜스크립트 데이터 저장
+	CreatedAt  time.Time                 `json:"createdAt"`
 }
 
 // Timestamp represents a timestamp in the summary
@@ -121,7 +124,7 @@ func (c *SummaryCache) Get(videoID string) (*CacheItem, bool) {
 }
 
 // Set adds an item to the cache
-func (c *SummaryCache) Set(videoID, title, summary string, timestamps []Timestamp) error {
+func (c *SummaryCache) Set(videoID, title, summary string, timestamps []Timestamp, transcript []services.TranscriptItem) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
@@ -130,6 +133,7 @@ func (c *SummaryCache) Set(videoID, title, summary string, timestamps []Timestam
 		Title:      title,
 		Summary:    summary,
 		Timestamps: timestamps,
+		Transcript: transcript,
 		CreatedAt:  time.Now(),
 	}
 
@@ -237,6 +241,23 @@ func (c *SummaryCache) loadFromDisk() error {
 
 		// Add to memory cache
 		c.items[videoID] = &item
+	}
+
+	return nil
+}
+
+// AddUserSummaryToCache는 캐시에 비디오 요약을 추가하고 동시에 사용자의 요약 목록에도 추가합니다.
+func (c *SummaryCache) AddUserSummaryToCache(userID, videoID, title, summary string, timestamps []Timestamp, transcript []services.TranscriptItem) error {
+	// 먼저 글로벌 캐시에 추가
+	err := c.Set(videoID, title, summary, timestamps, transcript)
+	if err != nil {
+		return fmt.Errorf("글로벌 캐시에 추가 실패: %w", err)
+	}
+
+	// 사용자의 요약 목록에 추가
+	err = AddUserSummary(userID, videoID, title)
+	if err != nil {
+		return fmt.Errorf("사용자 요약 목록에 추가 실패: %w", err)
 	}
 
 	return nil

@@ -146,6 +146,7 @@ func GetTranscript(videoID string, chunkSize float64) ([][]TranscriptItem, error
 		"--skip-download",     // Don't download the video
 		"--sub-format", "vtt", // Get WebVTT format
 		"--paths", tempDir, // Save subtitle files to our temp directory
+		"-o '%(id)s.%(ext)s'",
 		videoURL,
 	)
 
@@ -201,10 +202,11 @@ func processSubtitleFiles(tempDir string, chunkSize float64) ([][]TranscriptItem
 	}
 
 	// Sort transcript items by start time
-	sortTranscriptItemsByTime(allTranscriptItems)
+	SortTranscriptItemsByTime(allTranscriptItems)
 
-	// Merge consecutive transcript items that are very close in time
-	// allTranscriptItems = MergeConsecutiveTranscriptItems(allTranscriptItems)
+	if chunkSize <= 0 {
+		return [][]TranscriptItem{allTranscriptItems}, nil
+	}
 
 	// Split transcript items into chunks
 	var chunks [][]TranscriptItem
@@ -310,7 +312,7 @@ func parseVttContent(vttContent string) []TranscriptItem {
 		}
 	}
 
-	return transcriptItems
+	return mergeConsecutiveTranscriptItems(transcriptItems)
 }
 
 // cleanVttLine removes timestamp tags and other artifacts from VTT lines
@@ -348,8 +350,9 @@ func parseVttTimestamp(timestamp string) float64 {
 	return float64(hours*3600+minutes*60+seconds) + float64(milliseconds)/1000
 }
 
-// sortTranscriptItemsByTime sorts the transcript items by their start time
-func sortTranscriptItemsByTime(items []TranscriptItem) {
+// SortTranscriptItemsByTime sorts the transcript items by their start time
+// This function is exported to be used by other packages
+func SortTranscriptItemsByTime(items []TranscriptItem) {
 	sort.Slice(items, func(i, j int) bool {
 		return items[i].Start < items[j].Start
 	})
@@ -375,4 +378,70 @@ func cleanTranscriptText(text string) string {
 	text = artifactRegex.ReplaceAllString(text, "")
 
 	return strings.TrimSpace(text)
+}
+
+func mergeConsecutiveTranscriptItems(items []TranscriptItem) []TranscriptItem {
+	var result []TranscriptItem
+
+	for _, e := range items {
+		n := len(result)
+		if n > 0 {
+			prev := result[n-1]
+
+			// 1) 동일 타임스탬프 처리
+			if int(e.Start) == int(prev.Start) {
+				// (1-1) 완전 중복
+				if e.Text == prev.Text {
+					continue
+					// (1-2) 뒷텍스트가 앞텍스트를 접두어로 포함
+				} else if strings.HasPrefix(e.Text, prev.Text) {
+					remainder := strings.TrimPrefix(e.Text, prev.Text)
+
+					// Remove leading period or comma if present
+					// remainder = strings.TrimPrefix(remainder, ".")
+					// remainder = strings.TrimPrefix(remainder, ",")
+					// remainder = strings.TrimSpace(remainder)
+
+					// 빈 문자열이 아니면 그 나머지를 남김
+					if remainder != "" {
+						result[n-1] = TranscriptItem{remainder, prev.Start, prev.Duration}
+					} else {
+						// 접두어 제거 뒤 빈 문자열이면
+						// 단순 교체해 둠(중복 처리와 같음)
+						result[n-1] = e
+					}
+				} else {
+					// 그 외엔 뒤 항목으로 교체
+					result[n-1] = e
+				}
+				continue
+			}
+
+			// 2) 앞 타임스탬프가 더 앞이고 내용 포함된 경우
+			if int(prev.Start) < int(e.Start) && strings.Contains(e.Text, prev.Text) {
+				remainder := strings.Replace(e.Text, prev.Text, "", 1)
+
+				// Remove leading period or comma if present
+				// remainder = strings.TrimPrefix(remainder, ".")
+				// remainder = strings.TrimPrefix(remainder, ",")
+				// remainder = strings.TrimSpace(remainder)
+
+				if remainder != "" {
+					result = append(result, TranscriptItem{remainder, e.Start, e.Duration})
+				}
+				// remainder가 빈 문자열이면 완전 중복처럼 간주하고 skip
+				continue
+			}
+
+			// 3) 타임스탬프 다르지만 텍스트가 완전 동일한 경우
+			if int(prev.Start) != int(e.Start) && e.Text == prev.Text {
+				continue
+			}
+		}
+
+		// 위 모든 경우에 해당하지 않으면 있는 그대로 추가
+		result = append(result, e)
+	}
+
+	return result
 }

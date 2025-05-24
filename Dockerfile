@@ -30,6 +30,7 @@ WORKDIR /app
 RUN mkdir backend
 # 빌드된 실행 파일 복사
 COPY --from=builder /app/youtube-summarizer ./backend
+COPY --from=builder /app/templates ./backend/templates
 
 # 환경 변수 파일 복사
 COPY backend/.env.example ./.env.example

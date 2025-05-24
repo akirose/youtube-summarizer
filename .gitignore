@@ -6,6 +6,7 @@
 project.md
 **/.env
 backend/cache/
+backend/users/
 backend/__debug*
 presentation/
 **/*.tar.gz
@@ -24,6 +25,7 @@ node_modules/
 
 # Environment variables
 .env
+.env.sample
 
 # Editor directories and files
 .windsurfrules
@@ -42,4 +44,4 @@ node_modules/
 tasks.json
 tasks/ 
 prd.txt
-backend/main.go
+README-task-master.md
